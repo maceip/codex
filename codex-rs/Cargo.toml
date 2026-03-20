@@ -71,6 +71,7 @@ members = [
     "test-macros",
     "package-manager",
     "artifacts",
+    "wasm-bridge",
 ]
 resolver = "2"
 

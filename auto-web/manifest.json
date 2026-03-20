@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "generated_at_utc": "2026-03-20T02:52:39Z",
+  "project": {
+    "id": "codex-wasm-port",
+    "repo_root": "/home/pooppoop/codex",
+    "source": "https://github.com/maceip/codex.git",
+    "default_branch": "main",
+    "commit": "403b397e4e1d1830a5848367fe05096f8b41faac"
+  },
+  "target": {
+    "target_triple": "wasm32-unknown-unknown",
+    "host_environment": "node",
+    "profile": "minimal-hosted-wasm"
+  },
+  "toolchains": {
+    "primary_languages": ["Rust", "JavaScript"],
+    "build_systems": ["cargo", "npm"]
+  },
+  "workspace": {
+    "workspace_manifest": "codex-rs/Cargo.toml",
+    "node_launcher": "codex-cli/bin/codex.js",
+    "crate_count_observed": 71
+  },
+  "portability_summary": {
+    "portable": [
+      "codex-rs/protocol",
+      "codex-rs/app-server-protocol"
+    ],
+    "gated": [
+      "codex-rs/core",
+      "codex-rs/app-server",
+      "codex-rs/cli",
+      "codex-rs/codex-api",
+      "codex-rs/keyring-store",
+      "codex-rs/secrets",
+      "codex-cli/bin/codex.js"
+    ],
+    "excluded": [
+      "codex-rs/exec",
+      "codex-rs/utils/pty",
+      "codex-rs/linux-sandbox",
+      "codex-rs/windows-sandbox-rs",
+      "codex-rs/tui"
+    ],
+    "planned": [
+      "codex-rs/wasm-bridge"
+    ]
+  },
+  "artifacts": {
+    "plan": "auto-web/plan.md",
+    "phase_map": "auto-web/phase-map.json",
+    "repo_port_plan": "auto-web/repo-port-plan.json",
+    "native_surfaces": "auto-web/native-surfaces.json",
+    "blockers": "auto-web/blockers.md"
+  },
+  "open_questions": [
+    "Should the first milestone target maceip/v8 or maceip/v9?",
+    "Should the first supported host runtime be Node-only or Node plus browser?",
+    "Should the public wasm contract center on core directly or the app-server boundary?"
+  ]
+}

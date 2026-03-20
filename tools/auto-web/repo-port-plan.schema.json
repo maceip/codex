@@ -1,0 +1,213 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/auto-web/repo-port-plan.schema.json",
+  "title": "AutoWebRepoPortPlan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo",
+    "targets",
+    "inventory",
+    "native_surfaces",
+    "strategy",
+    "generated_artifacts",
+    "validation"
+  ],
+  "properties": {
+    "repo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "source",
+        "default_branch"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "location"],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": ["github", "git", "local"]
+            },
+            "location": { "type": "string" }
+          }
+        },
+        "default_branch": { "type": "string" },
+        "commit": { "type": "string" },
+        "languages": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "build_systems": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "targets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["target_triple", "host_environment"],
+        "properties": {
+          "target_triple": { "type": "string" },
+          "host_environment": {
+            "type": "string",
+            "enum": ["node", "browser", "custom"]
+          },
+          "profile": { "type": "string" }
+        }
+      }
+    },
+    "inventory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["units"],
+      "properties": {
+        "units": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "kind", "path", "status"],
+            "properties": {
+              "id": { "type": "string" },
+              "kind": { "type": "string" },
+              "path": { "type": "string" },
+              "status": {
+                "type": "string",
+                "enum": ["portable", "gated", "excluded", "unknown"]
+              },
+              "entrypoint": { "type": "boolean" },
+              "notes": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "native_surfaces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["surface", "location", "strategy"],
+        "properties": {
+          "surface": {
+            "type": "string",
+            "enum": [
+              "process",
+              "pty",
+              "filesystem",
+              "network",
+              "socket",
+              "secrets",
+              "sandbox",
+              "terminal_ui",
+              "ffi",
+              "os_dependency"
+            ]
+          },
+          "location": { "type": "string" },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "keep_as_is",
+              "cfg_gate",
+              "stub",
+              "bridge_to_host",
+              "exclude_from_target"
+            ]
+          },
+          "host_capability": { "type": "string" },
+          "severity": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "critical"]
+          },
+          "notes": { "type": "string" }
+        }
+      }
+    },
+    "strategy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary_pattern", "phase_order"],
+      "properties": {
+        "primary_pattern": {
+          "type": "string",
+          "enum": [
+            "bridge_and_gate",
+            "stub_and_exclude",
+            "hybrid"
+          ]
+        },
+        "phase_order": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "independent_tracks": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "llm_allowed_tasks": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "generated_artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifest_path", "plan_path"],
+      "properties": {
+        "manifest_path": { "type": "string" },
+        "plan_path": { "type": "string" },
+        "bridge_path": { "type": "string" },
+        "host_adapter_path": { "type": "string" },
+        "patch_bundle_path": { "type": "string" },
+        "report_path": { "type": "string" }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["compile_checks", "smoke_tests", "success_criteria"],
+      "properties": {
+        "compile_checks": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "contract_tests": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "smoke_tests": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "success_criteria": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "summary", "mitigation"],
+        "properties": {
+          "id": { "type": "string" },
+          "summary": { "type": "string" },
+          "mitigation": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "generated_at_utc": "2026-03-20T02:52:39Z",
+  "repo": "codex-wasm-port",
+  "surfaces": [
+    {
+      "id": "exec-process",
+      "surface": "process",
+      "locations": [
+        "codex-rs/core",
+        "codex-rs/cli",
+        "codex-rs/exec"
+      ],
+      "strategy": "bridge_to_host",
+      "host_capability": "host_exec_adapter",
+      "severity": "critical",
+      "why": "tokio process and child-process orchestration cannot run natively on wasm32-unknown-unknown."
+    },
+    {
+      "id": "pty-runtime",
+      "surface": "pty",
+      "locations": [
+        "codex-rs/utils/pty",
+        "codex-rs/app-server",
+        "codex-rs/core"
+      ],
+      "strategy": "exclude_from_target",
+      "host_capability": "host_exec_adapter",
+      "severity": "high",
+      "why": "portable-pty and terminal-session assumptions are native-only on the first wasm milestone."
+    },
+    {
+      "id": "filesystem-access",
+      "surface": "filesystem",
+      "locations": [
+        "codex-rs/core",
+        "codex-rs/app-server",
+        "codex-rs/cli"
+      ],
+      "strategy": "bridge_to_host",
+      "host_capability": "host_fs_adapter",
+      "severity": "high",
+      "why": "file reads, writes, and path inspection need a host filesystem seam or MEMFS-backed abstraction."
+    },
+    {
+      "id": "http-and-streaming",
+      "surface": "network",
+      "locations": [
+        "codex-rs/core",
+        "codex-rs/codex-api",
+        "codex-rs/tui"
+      ],
+      "strategy": "bridge_to_host",
+      "host_capability": "host_network_adapter",
+      "severity": "critical",
+      "why": "reqwest, SSE, and websocket flows need a wasm-safe transport and callback path."
+    },
+    {
+      "id": "tokio-sockets",
+      "surface": "socket",
+      "locations": [
+        "codex-rs/codex-api"
+      ],
+      "strategy": "cfg_gate",
+      "severity": "high",
+      "why": "tokio net and websocket transport code must not leak into the wasm build graph."
+    },
+    {
+      "id": "secret-storage",
+      "surface": "secrets",
+      "locations": [
+        "codex-rs/keyring-store",
+        "codex-rs/secrets",
+        "codex-rs/core"
+      ],
+      "strategy": "bridge_to_host",
+      "host_capability": "host_secret_adapter",
+      "severity": "high",
+      "why": "keyring-backed storage is platform-specific and needs a host-managed replacement."
+    },
+    {
+      "id": "sandboxing",
+      "surface": "sandbox",
+      "locations": [
+        "codex-rs/linux-sandbox",
+        "codex-rs/windows-sandbox-rs",
+        "codex-rs/process-hardening"
+      ],
+      "strategy": "stub",
+      "severity": "medium",
+      "why": "native sandboxing is explicitly out of the wasm path and should return documented stub outcomes."
+    },
+    {
+      "id": "terminal-ui",
+      "surface": "terminal_ui",
+      "locations": [
+        "codex-rs/tui",
+        "codex-rs/tui_app_server"
+      ],
+      "strategy": "exclude_from_target",
+      "severity": "medium",
+      "why": "ratatui and crossterm are outside the first wasm milestone."
+    },
+    {
+      "id": "platform-dependencies",
+      "surface": "os_dependency",
+      "locations": [
+        "codex-rs/core",
+        "codex-rs/cli",
+        "codex-rs/tui",
+        "codex-rs/codex-api"
+      ],
+      "strategy": "cfg_gate",
+      "severity": "critical",
+      "why": "tokio process, tokio net, libc, keyring backends, and sandbox crates need explicit target gating."
+    }
+  ]
+}

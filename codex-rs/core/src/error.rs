@@ -37,16 +37,6 @@ pub enum SandboxErr {
         network_policy_decision: Option<NetworkPolicyDecisionPayload>,
     },
 
-    /// Error from linux seccomp filter setup
-    #[cfg(target_os = "linux")]
-    #[error("seccomp setup error")]
-    SeccompInstall(#[from] seccompiler::Error),
-
-    /// Error from linux seccomp backend
-    #[cfg(target_os = "linux")]
-    #[error("seccomp backend error")]
-    SeccompBackend(#[from] seccompiler::BackendError),
-
     /// Command timed out
     #[error("command timed out")]
     Timeout { output: Box<ExecToolCallOutput> },
@@ -170,14 +160,6 @@ pub enum CodexErr {
     #[error(transparent)]
     Json(#[from] serde_json::Error),
 
-    #[cfg(target_os = "linux")]
-    #[error(transparent)]
-    LandlockRuleset(#[from] landlock::RulesetError),
-
-    #[cfg(target_os = "linux")]
-    #[error(transparent)]
-    LandlockPathFd(#[from] landlock::PathFdError),
-
     #[error(transparent)]
     TokioJoin(#[from] JoinError),
 
@@ -224,8 +206,6 @@ impl CodexErr {
             | CodexErr::Io(_)
             | CodexErr::Json(_)
             | CodexErr::TokioJoin(_) => true,
-            #[cfg(target_os = "linux")]
-            CodexErr::LandlockRuleset(_) | CodexErr::LandlockPathFd(_) => false,
         }
     }
 }

@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>codex-wasm-bridge browser harness</title>
+  </head>
+  <body>
+    <p id="status">loading…</p>
+    <!-- Host imports resolve as global properties (no-modules IIFE, non-strict). -->
+    <script>
+      (function () {
+        var mem = Object.create(null);
+        var secrets = Object.create(null);
+        var C = null;
+
+        function deliver(envelope) {
+          if (!C) throw new Error("codex bridge not bound");
+          C.codex_deliver_callback(JSON.stringify(envelope));
+        }
+
+        function missingCap(cid, cap) {
+          deliver({
+            correlation_id: cid,
+            error: {
+              code: "missing_capability",
+              message: "no: " + cap,
+              details: null,
+            },
+          });
+        }
+
+        host_exec_request = function (json) {
+          var p = JSON.parse(json);
+          var cid = p.correlation_id;
+          deliver({
+            correlation_id: cid,
+            capability: "exec",
+            payload: {
+              kind: "exec_chunk",
+              correlation_id: cid,
+              stream: "stdout",
+              data: "browser-stub",
+            },
+          });
+          deliver({
+            correlation_id: cid,
+            capability: "exec",
+            payload: {
+              kind: "exec_exit",
+              correlation_id: cid,
+              exit_code: 0,
+              signal: null,
+              cancelled: false,
+            },
+          });
+        };
+
+        host_http_request = function (json) {
+          var req = JSON.parse(json);
+          var cid = req.correlation_id;
+          if (req.stream_response) {
+            deliver({
+              correlation_id: cid,
+              capability: "network",
+              payload: {
+                kind: "http_stream_chunk",
+                correlation_id: cid,
+                chunk: "a",
+                done: false,
+              },
+            });
+            deliver({
+              correlation_id: cid,
+              capability: "network",
+              payload: {
+                kind: "http_stream_chunk",
+                correlation_id: cid,
+                chunk: "b",
+                done: true,
+              },
+            });
+            return;
+          }
+          fetch(req.url, {
+            method: req.method || "GET",
+            headers: req.headers || undefined,
+            body: req.body || undefined,
+            signal: req.timeout_ms ? AbortSignal.timeout(req.timeout_ms) : undefined,
+          })
+            .then(function (resp) {
+              return resp.text().then(function (body) {
+                var headers = {};
+                resp.headers.forEach(function (v, k) {
+                  headers[k] = v;
+                });
+                deliver({
+                  correlation_id: cid,
+                  capability: "network",
+                  payload: {
+                    kind: "http_response",
+                    correlation_id: cid,
+                    status: resp.status,
+                    headers: headers,
+                    body: body,
+                  },
+                });
+              });
+            })
+            .catch(function (err) {
+              var code =
+                err.name === "TimeoutError"
+                  ? "timeout"
+                  : err.name === "AbortError"
+                    ? "cancelled"
+                    : "internal";
+              deliver({
+                correlation_id: cid,
+                error: {
+                  code: code,
+                  message: err.message,
+                  details: null,
+                },
+              });
+            });
+        };
+
+        host_fs_read = function (json) {
+          var p = JSON.parse(json);
+          var cid = p.correlation_id;
+          var k = p.path;
+          if (!(k in mem)) {
+            deliver({
+              correlation_id: cid,
+              error: {
+                code: "not_found",
+                message: "enoent",
+                details: null,
+              },
+            });
+            return;
+          }
+          deliver({
+            correlation_id: cid,
+            capability: "fs_read",
+            payload: {
+              correlation_id: cid,
+              data: mem[k],
+              encoding: "utf-8",
+            },
+          });
+        };
+
+        host_fs_write = function (json) {
+          var p = JSON.parse(json);
+          var cid = p.correlation_id;
+          mem[p.path] = p.data || "";
+          deliver({
+            correlation_id: cid,
+            capability: "fs_write",
+            payload: {
+              correlation_id: cid,
+              bytes_written: (p.data && p.data.length) || 0,
+            },
+          });
+        };
+
+        host_fs_list = function (json) {
+          var p = JSON.parse(json);
+          var cid = p.correlation_id;
+          deliver({
+            correlation_id: cid,
+            capability: "fs_list",
+            payload: { correlation_id: cid, entries: [] },
+          });
+        };
+
+        host_fs_stat = function (json) {
+          var p = JSON.parse(json);
+          var cid = p.correlation_id;
+          var k = p.path;
+          if (k in mem) {
+            deliver({
+              correlation_id: cid,
+              capability: "fs_stat",
+              payload: {
+                correlation_id: cid,
+                exists: true,
+                kind: "file",
+                size: mem[k].length,
+                modified_ms: Date.now(),
+              },
+            });
+          } else {
+            deliver({
+              correlation_id: cid,
+              capability: "fs_stat",
+              payload: {
+                correlation_id: cid,
+                exists: false,
+                kind: null,
+                size: null,
+                modified_ms: null,
+              },
+            });
+          }
+        };
+
+        host_fs_remove = function (json) {
+          var p = JSON.parse(json);
+          var cid = p.correlation_id;
+          delete mem[p.path];
+          deliver({
+            correlation_id: cid,
+            capability: "fs_remove",
+            payload: { correlation_id: cid, removed: true },
+          });
+        };
+
+        host_secret_get = function (json) {
+          var p = JSON.parse(json);
+          var cid = p.correlation_id;
+          var k = p.key;
+          var v = secrets[k];
+          var found = v !== undefined;
+          deliver({
+            correlation_id: cid,
+            capability: "secret_get",
+            payload: {
+              correlation_id: cid,
+              value: found ? v : null,
+              found: found,
+            },
+          });
+        };
+
+        host_secret_set = function (json) {
+          var p = JSON.parse(json);
+          var cid = p.correlation_id;
+          secrets[p.key] = p.value;
+          deliver({
+            correlation_id: cid,
+            capability: "secret_set",
+            payload: { correlation_id: cid, stored: true },
+          });
+        };
+
+        host_sandbox_apply = function (json) {
+          var p = JSON.parse(json);
+          var cid = p.correlation_id;
+          deliver({
+            correlation_id: cid,
+            capability: "sandbox",
+            payload: {
+              correlation_id: cid,
+              applied: false,
+              stub: true,
+              reason: "wasm browser harness",
+            },
+          });
+        };
+
+        globalThis.__bindCodexWasm = function (bindings) {
+          C = bindings;
+        };
+      })();
+    </script>
+    <script src="codex_wasm_bridge.js"></script>
+    <script>
+      (async function () {
+        var el = document.getElementById("status");
+        function fail(msg) {
+          el.textContent = "fail: " + msg;
+          globalThis.__CODEX_BROWSER_E2E__ = { ok: false, error: msg };
+        }
+        function sleep(ms) {
+          return new Promise(function (r) {
+            setTimeout(r, ms);
+          });
+        }
+        try {
+          await wasm_bindgen();
+          globalThis.__bindCodexWasm(wasm_bindgen);
+          var init = JSON.parse(
+            await wasm_bindgen.codex_init(
+              JSON.stringify({ version: "0.1.0" }),
+            ),
+          );
+          if (init.error) {
+            fail("init: " + JSON.stringify(init.error));
+            return;
+          }
+
+          var cid = crypto.randomUUID();
+          var sub = JSON.parse(
+            await wasm_bindgen.codex_submit(
+              JSON.stringify({
+                correlation_id: cid,
+                kind: "tool",
+                payload: {
+                  fs_write: {
+                    path: "/b/h.txt",
+                    data: "browser-e2e",
+                    encoding: "utf-8",
+                    create_dirs: false,
+                  },
+                },
+              }),
+            ),
+          );
+          if (sub.status !== "accepted") {
+            fail("fs_write submit: " + JSON.stringify(sub));
+            return;
+          }
+          await sleep(150);
+
+          cid = crypto.randomUUID();
+          sub = JSON.parse(
+            await wasm_bindgen.codex_submit(
+              JSON.stringify({
+                correlation_id: cid,
+                kind: "tool",
+                payload: {
+                  fs_read: { path: "/b/h.txt", encoding: "utf-8" },
+                },
+              }),
+            ),
+          );
+          if (sub.status !== "accepted") {
+            fail("fs_read submit: " + JSON.stringify(sub));
+            return;
+          }
+          await sleep(150);
+
+          cid = crypto.randomUUID();
+          sub = JSON.parse(
+            await wasm_bindgen.codex_submit(
+              JSON.stringify({
+                correlation_id: cid,
+                kind: "tool",
+                payload: {
+                  http: {
+                    url: globalThis.__BROWSER_HARNESS_ORIGIN__ + "/browser-ping",
+                    method: "GET",
+                  },
+                },
+              }),
+            ),
+          );
+          if (sub.status !== "accepted") {
+            fail("http submit: " + JSON.stringify(sub));
+            return;
+          }
+          await sleep(400);
+
+          cid = crypto.randomUUID();
+          sub = JSON.parse(
+            await wasm_bindgen.codex_submit(
+              JSON.stringify({
+                correlation_id: cid,
+                kind: "tool",
+                payload: {
+                  http: {
+                    url: globalThis.__BROWSER_HARNESS_ORIGIN__ + "/stream",
+                    method: "GET",
+                    stream_response: true,
+                  },
+                },
+              }),
+            ),
+          );
+          if (sub.status !== "accepted") {
+            fail("http stream submit: " + JSON.stringify(sub));
+            return;
+          }
+          await sleep(200);
+
+          await wasm_bindgen.codex_shutdown();
+          el.textContent = "ok";
+          globalThis.__CODEX_BROWSER_E2E__ = { ok: true };
+        } catch (e) {
+          fail(String(e && e.message ? e.message : e));
+        }
+      })();
+    </script>
+  </body>
+</html>

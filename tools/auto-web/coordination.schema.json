@@ -1,0 +1,231 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/auto-web/coordination.schema.json",
+  "title": "AutoWebCoordinationLedger",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "last_updated_utc",
+    "project",
+    "actors",
+    "communication",
+    "assets"
+  ],
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "last_updated_utc": { "type": "string" },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "repo_root", "primary_goal", "secondary_goal"],
+      "properties": {
+        "id": { "type": "string" },
+        "repo_root": { "type": "string" },
+        "primary_goal": { "type": "string" },
+        "secondary_goal": { "type": "string" }
+      }
+    },
+    "actors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "responsibility"],
+        "properties": {
+          "id": { "type": "string" },
+          "responsibility": { "type": "string" },
+          "preferred_write_areas": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "communication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shared_file", "logbook_file", "rules"],
+      "properties": {
+        "shared_file": { "type": "string" },
+        "logbook_file": { "type": "string" },
+        "rules": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "workflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": { "type": "string" },
+        "arbiter": { "type": "string" },
+        "checkpoints": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "before_task": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "after_task": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "resume_after_pause": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "conflict_policy": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "assets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lockfiles", "key_files"],
+      "properties": {
+        "lockfiles": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/asset" }
+        },
+        "key_files": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/asset" }
+        }
+      }
+    },
+    "file_claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "owner", "status"],
+        "properties": {
+          "path": { "type": "string" },
+          "owner": { "type": "string" },
+          "status": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "port_dependencies": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "current_or_candidate": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "owner", "status", "reason"],
+            "properties": {
+              "name": { "type": "string" },
+              "owner": { "type": "string" },
+              "status": { "type": "string" },
+              "type": { "type": "string" },
+              "reason": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "tests": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "commands": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "owner", "status", "command", "purpose"],
+            "properties": {
+              "id": { "type": "string" },
+              "owner": { "type": "string" },
+              "status": { "type": "string" },
+              "command": { "type": "string" },
+              "purpose": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "owner", "status", "summary", "impact"],
+        "properties": {
+          "id": { "type": "string" },
+          "owner": { "type": "string" },
+          "status": { "type": "string" },
+          "summary": { "type": "string" },
+          "impact": { "type": "string" }
+        }
+      }
+    },
+    "handoffs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["timestamp_utc", "from", "to", "summary", "depends_on"],
+        "properties": {
+          "timestamp_utc": { "type": "string" },
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "summary": { "type": "string" },
+          "depends_on": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["timestamp_utc", "owner", "summary"],
+        "properties": {
+          "timestamp_utc": { "type": "string" },
+          "owner": { "type": "string" },
+          "summary": { "type": "string" }
+        }
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "summary"],
+        "properties": {
+          "id": { "type": "string" },
+          "summary": { "type": "string" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "owner", "purpose"],
+      "properties": {
+        "path": { "type": "string" },
+        "sha256": { "type": "string" },
+        "owner": { "type": "string" },
+        "purpose": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,100 @@
+version: 2
+last_updated_utc: "2026-03-20T11:00:00Z"
+project:
+  id: codex-wasm-port
+  repo_root: /home/pooppoop/codex
+  primary_goal: compile the codex workspace to wasm32 with minimal shims and minimal upstream divergence
+  secondary_goal: turn the porting workflow into a reusable auto-web harness for future repos
+rules:
+  - This is the only coordination file.
+  - Phase-only coordination. No chunk queues.
+  - Cursor owns cursor_phase_1 until complete or truly blocked.
+  - Cloud owns cloud_phase_1 until complete or truly blocked.
+  - Do not rewrite this file's structure.
+  - Cursor may update only phases.cursor.report.
+  - Cloud may update only phases.cloud.report.
+  - Codex may update assignments, rules, and phase definitions.
+  - If a phase is not complete and not truly blocked, keep working.
+  - last_updated_utc must be updated on every edit.
+ownership:
+  codex:
+    may_edit:
+      - rules
+      - ownership
+      - phases.cursor.objective
+      - phases.cursor.scope
+      - phases.cursor.exit_criteria
+      - phases.cloud.objective
+      - phases.cloud.scope
+      - phases.cloud.exit_criteria
+  cursor:
+    may_edit:
+      - phases.cursor.report
+  cloud:
+    may_edit:
+      - phases.cloud.report
+phases:
+  cursor:
+    id: cursor_phase_1
+    owner: cursor
+    status: active
+    objective: complete the repo-side wasm capability phase by making cli-originated wasm submissions drive structured host calls end to end, then extending the same structured pattern across exec, network, filesystem, secrets, sandbox-stub behavior, coverage, and seam stabilization.
+    scope:
+      - codex-rs/core/
+      - codex-rs/wasm-bridge/
+      - codex-rs/utils/pty/
+      - codex-rs/app-server/
+      - codex-rs/Cargo.toml
+      - codex-rs/Cargo.lock
+    exit_criteria:
+      - cli-originated wasm submissions drive structured exec host calls end to end
+      - structured repo-side paths exist for exec, network, filesystem, secrets, and sandbox-stub behavior
+      - relevant crate-scoped coverage exists for supported structured paths
+      - generic bridge-only acceptance is no longer the primary hot path for supported wasm capabilities
+    report:
+      last_update_utc: "2026-03-20T11:00:00Z"
+      files_changed:
+        - codex-rs/core/src/wasm_bridge.rs
+        - codex-rs/core/src/wasm_bridge_tests.rs
+        - docs/wasm-phase3-networking.md
+        - docs/maceip-wasm-roadmap.md
+      tests_run:
+        - cargo test -p codex-wasm-bridge (includes new Phase 3 http_stream contract test)
+        - cargo check --target wasm32-unknown-unknown -p codex-wasm-bridge --no-default-features --features wasm
+      blocker: none
+      progress: |
+        Phase 3 (Cursor) milestone: wasm_bridge HTTP contract types (WasmBridgeHttpRequest/Response/WasmBridgeHttpStreamChunk),
+        stream_response carry-through test on host payload, roadmap + phase3 doc with reqwest/SSE/WS inventory and compile gate notes.
+      next_action: Phase 4+ — deeper core transport injection only when codex-core wasm feature graph is scoped; keep bridge ABI as stable seam.
+  cloud:
+    id: cloud_phase_1
+    owner: cloud
+    status: active
+    objective: complete the loader and runtime phase by making the Node wasm launcher load the real module, handle structured capability families, expose stable diagnostics, normalize failures, and provide durable regression coverage.
+    scope:
+      - codex-cli/bin/codex.js
+      - tools/auto-web/host-harness.js
+      - auto-web/abi/host-contract.json
+      - tools/auto-web/wasm-out/
+    exit_criteria:
+      - codex-cli/bin/codex.js loads and drives the real wasm module cleanly in Node
+      - loader supports the structured capability families that exist on the repo side
+      - diagnostics, artifact handling, and runtime error behavior are explicit and operator-usable
+      - regression coverage exists for the loader and harness around supported runtime behavior
+    report:
+      last_update_utc: "2026-03-20T11:00:00Z"
+      files_changed:
+        - codex-cli/bin/codex.js (runHostHttpRequest: fetch + http_stream_chunk when stream_response)
+        - tools/auto-web/host-harness.js v0.6.0 (dispatch:http_stream, import:network_stream)
+      tests_run:
+        - "node tools/auto-web/host-harness.js --wasm — 53/53 (v0.6.0)"
+        - cargo test -p codex-wasm-bridge
+      blocker: none
+      progress: |
+        Phase 3 (Cloud) complete: Node host implements streamed HTTP via Response.body reader + TextDecoder;
+        timeouts map to timeout; AbortError to cancelled; trace host_call:http_stream / host_call:http_error.
+        Harness covers stubbed stream path and network_stream import flag.
+      next_action: Wire streamed callbacks into wasm-side state machine when core consumes them; browser adapter reuses same chunk shape.
+notes:
+  - Root cause of drift was multiple writers freely changing the file structure and status model.
+  - The file is now locked to a phase-only format with per-section ownership.

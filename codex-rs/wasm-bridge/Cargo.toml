@@ -1,0 +1,31 @@
+[package]
+name = "codex-wasm-bridge"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+name = "codex_wasm_bridge"
+path = "src/lib.rs"
+
+[features]
+default = []
+wasm = []
+
+[lints]
+workspace = true
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+wasm-bindgen = "0.2.108"
+wasm-bindgen-futures = "0.4.58"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+codex-core = { workspace = true }
+
+[dev-dependencies]
+futures = { workspace = true, features = ["executor"] }
+pretty_assertions = { workspace = true }
+serial_test = { workspace = true }

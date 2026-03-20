@@ -96,6 +96,8 @@ pub mod review_format;
 pub mod review_prompts;
 mod seatbelt_permissions;
 mod thread_manager;
+pub mod wasm_bridge;
+pub mod wasm_extension;
 pub mod web_search;
 pub mod windows_sandbox_read_grants;
 pub use thread_manager::NewThread;

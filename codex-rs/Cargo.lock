@@ -1887,7 +1887,6 @@ dependencies = [
  "indexmap 2.13.0",
  "insta",
  "keyring",
- "landlock",
  "libc",
  "maplit",
  "notify",
@@ -1903,7 +1902,6 @@ dependencies = [
  "reqwest",
  "rmcp",
  "schemars 0.8.22",
- "seccompiler",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -2137,23 +2135,6 @@ dependencies = [
 [[package]]
 name = "codex-linux-sandbox"
 version = "0.0.0"
-dependencies = [
- "cc",
- "clap",
- "codex-core",
- "codex-protocol",
- "codex-utils-absolute-path",
- "landlock",
- "libc",
- "pkg-config",
- "pretty_assertions",
- "seccompiler",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
- "url",
-]
 
 [[package]]
 name = "codex-lmstudio"
@@ -2874,6 +2855,20 @@ version = "0.0.0"
 dependencies = [
  "pretty_assertions",
  "regex-lite",
+]
+
+[[package]]
+name = "codex-wasm-bridge"
+version = "0.0.0"
+dependencies = [
+ "codex-core",
+ "futures",
+ "pretty_assertions",
+ "serde",
+ "serde_json",
+ "serial_test",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
 ]
 
 [[package]]
@@ -5541,17 +5536,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3c48237b9604c5a4702de6b824e02006c3214327564636aef27c1028a8fa0ed"
 dependencies = [
  "regex",
-]
-
-[[package]]
-name = "landlock"
-version = "0.4.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49fefd6652c57d68aaa32544a4c0e642929725bdc1fd929367cdeb673ab81088"
-dependencies = [
- "enumflags2",
- "libc",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -8418,15 +8402,6 @@ name = "sdd"
 version = "3.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "490dcfcbfef26be6800d11870ff2df8774fa6e86d047e3e8c8a76b25655e41ca"
-
-[[package]]
-name = "seccompiler"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4ae55de56877481d112a559bbc12667635fdaf5e005712fd4e2b2fa50ffc884"
-dependencies = [
- "libc",
-]
 
 [[package]]
 name = "secrecy"

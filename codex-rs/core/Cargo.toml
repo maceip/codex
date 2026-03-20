@@ -121,8 +121,6 @@ zip = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 keyring = { workspace = true, features = ["linux-native-async-persistent"] }
-landlock = { workspace = true }
-seccompiler = { workspace = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.9"

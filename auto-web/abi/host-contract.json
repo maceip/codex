@@ -1,0 +1,356 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CodexWasmHostContract",
+  "version": "0.1.0",
+  "description": "Draft host ABI contract for the codex-wasm-bridge. Defines every capability the host must provide to the wasm module, plus the wasm module's exported surface the host calls into. All messages use JSON payloads keyed by a correlation_id for request/response matching.",
+
+  "conventions": {
+    "correlation_id": {
+      "type": "string",
+      "format": "uuid-v4",
+      "description": "Every host request and wasm callback carries a correlation_id. The host MUST echo the same correlation_id when delivering results back to the wasm module. This is the only mechanism for matching async results to pending operations."
+    },
+    "cancellation": {
+      "description": "Either side may send a Cancel message referencing a correlation_id. The receiver SHOULD stop work associated with that id and emit a final status with cancelled: true. Cancellation is best-effort; results may still arrive after a cancel is sent.",
+      "cancel_payload": {
+        "correlation_id": "string",
+        "reason": "string | null"
+      }
+    },
+    "error_shape": {
+      "description": "All error payloads follow this shape. The host MUST return this shape when a capability is missing, a request fails, or an operation times out.",
+      "fields": {
+        "correlation_id": "string",
+        "error": {
+          "code": "string (enum: missing_capability | not_found | permission_denied | timeout | cancelled | internal)",
+          "message": "string",
+          "details": "object | null"
+        }
+      }
+    },
+    "missing_capability": {
+      "description": "If the host does not implement a capability, it MUST return an error with code 'missing_capability' rather than silently dropping the request. The wasm module surfaces this as an explicit user-visible error."
+    }
+  },
+
+  "wasm_exports": {
+    "description": "Functions the wasm module MUST export via wasm-bindgen for the host to call.",
+    "methods": {
+      "codex_init": {
+        "description": "Initialize the wasm module with configuration. Must be called before any other method.",
+        "params": {
+          "config_json": "string (JSON)"
+        },
+        "returns": "Promise<string> (JSON: { ok: true } | error_shape)"
+      },
+      "codex_submit": {
+        "description": "Submit a request (prompt, tool call, etc.) for processing.",
+        "params": {
+          "request_json": "string (JSON: { correlation_id, kind, payload })"
+        },
+        "returns": "Promise<string> (JSON: { correlation_id, status: 'accepted' } | error_shape)"
+      },
+      "codex_deliver_callback": {
+        "description": "Deliver the result of a host capability call back to the wasm module.",
+        "params": {
+          "result_json": "string (JSON: { correlation_id, capability, payload } | error_shape)"
+        },
+        "returns": "void"
+      },
+      "codex_cancel": {
+        "description": "Cancel an in-flight operation by correlation_id.",
+        "params": {
+          "cancel_json": "string (JSON: { correlation_id, reason })"
+        },
+        "returns": "void"
+      },
+      "codex_shutdown": {
+        "description": "Gracefully shut down the wasm module. No further calls should be made after this resolves.",
+        "params": {},
+        "returns": "Promise<void>"
+      }
+    }
+  },
+
+  "host_imports": {
+    "description": "Functions the host MUST provide as wasm imports. The wasm module calls these to request host capabilities. Each call includes a correlation_id for async result delivery via codex_deliver_callback.",
+
+    "exec": {
+      "capability_id": "host_exec_adapter",
+      "description": "Execute a command on the host and stream results back.",
+      "request": {
+        "method": "host_exec_request",
+        "payload": {
+          "correlation_id": "string",
+          "command": "string",
+          "args": ["string"],
+          "cwd": "string | null",
+          "env": "object | null",
+          "timeout_ms": "number | null",
+          "stdin": "string | null"
+        }
+      },
+      "callback_payloads": [
+        {
+          "kind": "exec_chunk",
+          "fields": {
+            "correlation_id": "string",
+            "stream": "stdout | stderr",
+            "data": "string (utf-8 text or base64 for binary)"
+          }
+        },
+        {
+          "kind": "exec_exit",
+          "fields": {
+            "correlation_id": "string",
+            "exit_code": "number",
+            "signal": "string | null",
+            "cancelled": "boolean"
+          }
+        }
+      ],
+      "errors": [
+        "missing_capability: host does not provide exec",
+        "not_found: command not found on host",
+        "permission_denied: host policy blocks this command",
+        "timeout: command exceeded timeout_ms",
+        "cancelled: operation was cancelled"
+      ]
+    },
+
+    "network": {
+      "capability_id": "host_network_adapter",
+      "description": "Perform HTTP requests and deliver responses or streamed chunks.",
+      "request": {
+        "method": "host_http_request",
+        "payload": {
+          "correlation_id": "string",
+          "url": "string",
+          "method": "GET | POST | PUT | DELETE | PATCH | HEAD | OPTIONS",
+          "headers": "object | null",
+          "body": "string | null",
+          "timeout_ms": "number | null",
+          "stream_response": "boolean"
+        }
+      },
+      "callback_payloads": [
+        {
+          "kind": "http_response",
+          "description": "Full response for non-streamed requests.",
+          "fields": {
+            "correlation_id": "string",
+            "status": "number",
+            "headers": "object",
+            "body": "string"
+          }
+        },
+        {
+          "kind": "http_stream_chunk",
+          "description": "Chunk for streamed responses (SSE, chunked transfer).",
+          "fields": {
+            "correlation_id": "string",
+            "chunk": "string",
+            "done": "boolean"
+          }
+        }
+      ],
+      "errors": [
+        "missing_capability: host does not provide network",
+        "timeout: request exceeded timeout_ms",
+        "cancelled: request was cancelled",
+        "internal: host-side transport failure"
+      ]
+    },
+
+    "filesystem": {
+      "capability_id": "host_fs_adapter",
+      "description": "Read, write, list, and stat files on the host filesystem or MEMFS.",
+      "methods": {
+        "host_fs_read": {
+          "payload": {
+            "correlation_id": "string",
+            "path": "string",
+            "encoding": "utf-8 | binary"
+          },
+          "callback": {
+            "correlation_id": "string",
+            "data": "string",
+            "encoding": "utf-8 | base64"
+          }
+        },
+        "host_fs_write": {
+          "payload": {
+            "correlation_id": "string",
+            "path": "string",
+            "data": "string",
+            "encoding": "utf-8 | base64",
+            "create_dirs": "boolean"
+          },
+          "callback": {
+            "correlation_id": "string",
+            "bytes_written": "number"
+          }
+        },
+        "host_fs_list": {
+          "payload": {
+            "correlation_id": "string",
+            "path": "string"
+          },
+          "callback": {
+            "correlation_id": "string",
+            "entries": [
+              {
+                "name": "string",
+                "kind": "file | directory | symlink",
+                "size": "number | null"
+              }
+            ]
+          }
+        },
+        "host_fs_stat": {
+          "payload": {
+            "correlation_id": "string",
+            "path": "string"
+          },
+          "callback": {
+            "correlation_id": "string",
+            "exists": "boolean",
+            "kind": "file | directory | symlink | null",
+            "size": "number | null",
+            "modified_ms": "number | null"
+          }
+        },
+        "host_fs_remove": {
+          "payload": {
+            "correlation_id": "string",
+            "path": "string",
+            "recursive": "boolean"
+          },
+          "callback": {
+            "correlation_id": "string",
+            "removed": "boolean"
+          }
+        }
+      },
+      "errors": [
+        "missing_capability: host does not provide filesystem",
+        "not_found: path does not exist",
+        "permission_denied: host policy blocks this path",
+        "internal: host-side I/O failure"
+      ]
+    },
+
+    "secrets": {
+      "capability_id": "host_secret_adapter",
+      "description": "Retrieve and store secrets through the host's credential provider.",
+      "methods": {
+        "host_secret_get": {
+          "payload": {
+            "correlation_id": "string",
+            "key": "string"
+          },
+          "callback": {
+            "correlation_id": "string",
+            "value": "string | null",
+            "found": "boolean"
+          }
+        },
+        "host_secret_set": {
+          "payload": {
+            "correlation_id": "string",
+            "key": "string",
+            "value": "string"
+          },
+          "callback": {
+            "correlation_id": "string",
+            "stored": "boolean"
+          }
+        },
+        "host_secret_delete": {
+          "payload": {
+            "correlation_id": "string",
+            "key": "string"
+          },
+          "callback": {
+            "correlation_id": "string",
+            "deleted": "boolean"
+          }
+        }
+      },
+      "errors": [
+        "missing_capability: host does not provide secret storage",
+        "permission_denied: host policy blocks secret access",
+        "internal: host credential backend failure"
+      ]
+    },
+
+    "sandbox": {
+      "capability_id": "host_sandbox_stub",
+      "description": "Sandbox operations are explicitly stubbed in wasm mode. The host acknowledges sandbox requests but takes no enforcement action.",
+      "methods": {
+        "host_sandbox_apply": {
+          "payload": {
+            "correlation_id": "string",
+            "policy": "string"
+          },
+          "callback": {
+            "correlation_id": "string",
+            "applied": false,
+            "stub": true,
+            "reason": "sandbox is not enforced in wasm mode"
+          }
+        }
+      },
+      "errors": []
+    }
+  },
+
+  "lifecycle": {
+    "description": "Expected call sequence for a minimal session.",
+    "sequence": [
+      "host calls codex_init(config_json)",
+      "host calls codex_submit(request_json) — wasm begins processing",
+      "wasm calls host_exec_request / host_http_request / host_fs_read / etc. as needed",
+      "host delivers results via codex_deliver_callback(result_json)",
+      "wasm completes processing and resolves the codex_submit promise with a result",
+      "host calls codex_shutdown()"
+    ],
+    "notes": [
+      "Multiple codex_submit calls may be in flight concurrently.",
+      "Host capability calls are async: wasm sends a request, host delivers the result via callback.",
+      "If a host capability is missing, the host MUST return error_shape with code missing_capability.",
+      "codex_shutdown waits for in-flight operations to drain or cancel."
+    ]
+  },
+
+  "extension_interfaces": {
+    "description": "Planned host imports + submit payload keys — keep aligned with codex_core::wasm_extension and codex-wasm-bridge::extension_ids",
+    "status": "reserved_not_implemented",
+    "structured_submit_keys": {
+      "ws": {
+        "planned_capability": "host_websocket_request",
+        "rust_constant": "codex_core::wasm_extension::SUBMIT_KEY_WEBSOCKET"
+      },
+      "tcp": {
+        "planned_capability": "host_tcp_socket",
+        "rust_constant": "codex_core::wasm_extension::SUBMIT_KEY_TCP",
+        "notes": "Likely unavailable in browser hosts; EdgeJS / Node may implement."
+      },
+      "app_server_rpc": {
+        "planned_capability": "host_app_server_rpc",
+        "rust_constant": "codex_core::wasm_extension::SUBMIT_KEY_APP_SERVER_RPC",
+        "notes": "Carries app-server v2-style JSON-RPC envelopes without compiling codex-app-server into wasm."
+      }
+    },
+    "host_import_methods": {
+      "host_websocket_request": "WebSocket connect / frame I/O (callbacks TBD; likely network capability family)",
+      "host_tcp_socket": "Connect / read / write / close (binary chunks)",
+      "host_app_server_rpc": "Forward RPC to native IDE server or worker; response via codex_deliver_callback"
+    },
+    "payload_sketches_rust": [
+      "codex_core::wasm_extension::WasmBridgeWebSocketHandshake",
+      "codex_core::wasm_extension::WasmBridgeTcpConnect",
+      "codex_core::wasm_extension::WasmBridgeAppServerRpcEnvelope"
+    ]
+  }
+}

@@ -1,0 +1,154 @@
+{
+  "version": 1,
+  "generated_at_utc": "2026-03-20T02:49:29Z",
+  "source_docs": [
+    "WORK.md",
+    "docs/maceip-wasm-roadmap.md",
+    "docs/auto-web-harness.md"
+  ],
+  "project_id": "codex-wasm-port",
+  "assumptions": [
+    "The first milestone stays close to upstream by adding one wasm bridge crate plus narrow cfg-gated seams.",
+    "The initial supported wasm-facing surface is core and app-server rather than the native TUI.",
+    "Host services replace exec, network, filesystem, secrets, and streaming; sandbox behavior is stubbed explicitly.",
+    "The exact maceip runtime version remains unresolved because WORK.md mentions both v8 and v9."
+  ],
+  "tracks": [
+    {
+      "id": "codex",
+      "focus": "planning artifacts, phase graph, validation matrix, and coordination"
+    },
+    {
+      "id": "cursor",
+      "focus": "workspace gating, wasm bridge crate, native-regression safety, and repo docs"
+    },
+    {
+      "id": "cloud",
+      "focus": "host loader, capability adapters, smoke tests, and automation substrate"
+    }
+  ],
+  "phases": [
+    {
+      "id": "phase-0",
+      "title": "Validation Harness and Scope Freeze",
+      "depends_on": [],
+      "owners": ["codex", "cursor", "cloud"],
+      "objective": "Define the supported scope, classify the workspace, and install failing wasm-first checks before implementation work starts.",
+      "deliverables": [
+        "workspace inventory",
+        "draft host ABI boundary",
+        "documented wasm build command",
+        "initial failing wasm-target checks"
+      ],
+      "validation": [
+        "native cargo check remains green for codex-core, codex-app-server, and codex-cli",
+        "future wasm bridge check is defined even if the crate does not exist yet",
+        "host smoke test expectation is defined and currently failing"
+      ]
+    },
+    {
+      "id": "phase-1",
+      "title": "Workspace Gating and Bridge Skeleton",
+      "depends_on": ["phase-0"],
+      "owners": ["cursor", "cloud"],
+      "objective": "Add codex-rs/wasm-bridge, keep native-only crates out of the wasm graph, and expose placeholder exports for host integration.",
+      "deliverables": [
+        "codex-rs/wasm-bridge crate",
+        "target-specific dependency gates",
+        "placeholder wasm-bindgen exports",
+        "mock host that loads the bridge"
+      ],
+      "validation": [
+        "wasm bridge symbols are exported",
+        "native-only crates are excluded from the wasm target",
+        "native cargo check still passes"
+      ]
+    },
+    {
+      "id": "phase-2",
+      "title": "Execution and Terminal Abstraction",
+      "depends_on": ["phase-1"],
+      "owners": ["cursor", "cloud"],
+      "objective": "Replace direct process and PTY assumptions on the wasm path with a host executor contract.",
+      "deliverables": [
+        "wasm-safe execution interface",
+        "host exec request and response contract",
+        "deterministic fake executor for tests"
+      ],
+      "validation": [
+        "exec contract tests cover request, chunk, exit, and cancellation",
+        "wasm path returns explicit errors when the host executor is missing",
+        "no direct PTY or process API remains in the wasm path"
+      ]
+    },
+    {
+      "id": "phase-3",
+      "title": "Networking and Async Runtime Adaptation",
+      "depends_on": ["phase-1"],
+      "owners": ["cursor", "cloud"],
+      "objective": "Move HTTP, SSE, and streaming behavior onto a host transport contract and a wasm-safe async model.",
+      "deliverables": [
+        "transport abstraction for wasm",
+        "host fetch and stream adapter",
+        "tokio usage inventory with wasm-safe replacements"
+      ],
+      "validation": [
+        "HTTP fixture tests pass through the transport abstraction",
+        "streaming chunk tests pass through the host bridge",
+        "compile checks fail if native-only tokio net usage leaks into the wasm target"
+      ]
+    },
+    {
+      "id": "phase-4",
+      "title": "Filesystem, Secrets, and Sandbox Replacement",
+      "depends_on": ["phase-1"],
+      "owners": ["cursor", "cloud"],
+      "objective": "Replace direct filesystem and secret access with host services and make sandbox behavior explicit stubs on wasm.",
+      "deliverables": [
+        "filesystem capability seam",
+        "secret storage capability seam",
+        "sandbox stub behavior for wasm"
+      ],
+      "validation": [
+        "filesystem round-trip tests pass",
+        "secret present and absent cases pass",
+        "sandbox calls return explicit stubbed outcomes"
+      ]
+    },
+    {
+      "id": "phase-5",
+      "title": "Public Entry Points and Host Loader Conversion",
+      "depends_on": ["phase-2", "phase-3", "phase-4"],
+      "owners": ["cursor", "cloud"],
+      "objective": "Turn the wasm bridge into the supported library surface and convert the host launcher away from native process spawning.",
+      "deliverables": [
+        "stable init, submit, callback, and shutdown exports",
+        "host loader path for wasm",
+        "documented request lifecycle contract"
+      ],
+      "validation": [
+        "host smoke test completes one request and one callback round-trip",
+        "ABI tests lock export names and payload shapes",
+        "native launcher behavior remains isolated to the native path"
+      ]
+    },
+    {
+      "id": "phase-6",
+      "title": "Product Surface Triage, Docs, and Hardening",
+      "depends_on": ["phase-5"],
+      "owners": ["codex", "cursor", "cloud"],
+      "objective": "Document the supported surface, add CI separation, and keep unsupported behavior explicit and sustainable through upstream syncs.",
+      "deliverables": [
+        "documented support matrix",
+        "native and wasm CI split",
+        "unsupported-feature guardrails",
+        "upstream merge-surface notes"
+      ],
+      "validation": [
+        "CI enforces native and wasm policy separately",
+        "unsupported features fail with user-visible errors",
+        "the documented happy path matches the smoke test"
+      ]
+    }
+  ]
+}

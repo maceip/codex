@@ -1,0 +1,291 @@
+{
+  "repo": {
+    "id": "maceip-codex",
+    "source": {
+      "kind": "github",
+      "location": "https://github.com/maceip/codex.git"
+    },
+    "default_branch": "main",
+    "commit": "403b397e4e1d1830a5848367fe05096f8b41faac",
+    "languages": ["Rust", "JavaScript"],
+    "build_systems": ["cargo", "npm"]
+  },
+  "targets": [
+    {
+      "target_triple": "wasm32-unknown-unknown",
+      "host_environment": "node",
+      "profile": "minimal-hosted-wasm"
+    }
+  ],
+  "inventory": {
+    "units": [
+      {
+        "id": "core",
+        "kind": "crate",
+        "path": "codex-rs/core",
+        "status": "gated",
+        "entrypoint": false,
+        "notes": "Primary logic crate but currently depends on reqwest, tokio process, keyring, PTY, and platform-specific crates."
+      },
+      {
+        "id": "app-server",
+        "kind": "crate",
+        "path": "codex-rs/app-server",
+        "status": "gated",
+        "entrypoint": true,
+        "notes": "Candidate wasm-facing boundary but still pulls tokio process, PTY utilities, and websocket/server features."
+      },
+      {
+        "id": "cli",
+        "kind": "crate",
+        "path": "codex-rs/cli",
+        "status": "gated",
+        "entrypoint": true,
+        "notes": "Native CLI path currently depends on codex-exec, codex-tui, and native runtime behavior."
+      },
+      {
+        "id": "protocol",
+        "kind": "crate",
+        "path": "codex-rs/protocol",
+        "status": "portable",
+        "entrypoint": false,
+        "notes": "Mostly serde and schema types; good candidate to cross the wasm boundary unchanged."
+      },
+      {
+        "id": "app-server-protocol",
+        "kind": "crate",
+        "path": "codex-rs/app-server-protocol",
+        "status": "portable",
+        "entrypoint": false,
+        "notes": "Protocol surface for app-server APIs and a strong candidate for stable bridge payloads."
+      },
+      {
+        "id": "codex-api",
+        "kind": "crate",
+        "path": "codex-rs/codex-api",
+        "status": "gated",
+        "entrypoint": false,
+        "notes": "Uses tokio net and tokio-tungstenite, so networking needs a wasm-specific transport seam."
+      },
+      {
+        "id": "exec",
+        "kind": "crate",
+        "path": "codex-rs/exec",
+        "status": "excluded",
+        "entrypoint": true,
+        "notes": "Exec binary is tightly coupled to native process execution and should stay out of the first wasm target."
+      },
+      {
+        "id": "utils-pty",
+        "kind": "crate",
+        "path": "codex-rs/utils/pty",
+        "status": "excluded",
+        "entrypoint": false,
+        "notes": "Portable PTY dependency and tokio process integration are native-only for the wasm path."
+      },
+      {
+        "id": "linux-sandbox",
+        "kind": "crate",
+        "path": "codex-rs/linux-sandbox",
+        "status": "excluded",
+        "entrypoint": true,
+        "notes": "Linux-specific sandbox crate must stay off the wasm build graph."
+      },
+      {
+        "id": "windows-sandbox",
+        "kind": "crate",
+        "path": "codex-rs/windows-sandbox-rs",
+        "status": "excluded",
+        "entrypoint": true,
+        "notes": "Windows-specific sandbox and command runner code is not part of the wasm target."
+      },
+      {
+        "id": "keyring-store",
+        "kind": "crate",
+        "path": "codex-rs/keyring-store",
+        "status": "gated",
+        "entrypoint": false,
+        "notes": "Native credential storage needs a host-backed replacement or wasm stub."
+      },
+      {
+        "id": "secrets",
+        "kind": "crate",
+        "path": "codex-rs/secrets",
+        "status": "gated",
+        "entrypoint": false,
+        "notes": "Depends on keyring-store and should move to a host-provided secret capability in wasm mode."
+      },
+      {
+        "id": "tui",
+        "kind": "crate",
+        "path": "codex-rs/tui",
+        "status": "excluded",
+        "entrypoint": true,
+        "notes": "Ratatui and crossterm terminal surface are not in scope for the first wasm milestone."
+      },
+      {
+        "id": "launcher-js",
+        "kind": "node_entrypoint",
+        "path": "codex-cli/bin/codex.js",
+        "status": "gated",
+        "entrypoint": true,
+        "notes": "Node launcher currently detects platform packages and spawns a native binary; it must become a wasm loader later."
+      },
+      {
+        "id": "wasm-bridge",
+        "kind": "crate",
+        "path": "codex-rs/wasm-bridge",
+        "status": "unknown",
+        "entrypoint": true,
+        "notes": "Planned new crate; it does not exist yet and is the first missing build target blocker."
+      }
+    ]
+  },
+  "native_surfaces": [
+    {
+      "surface": "process",
+      "location": "codex-rs/core, codex-rs/cli, codex-rs/exec",
+      "strategy": "bridge_to_host",
+      "host_capability": "host_exec_adapter",
+      "severity": "critical",
+      "notes": "tokio process usage and child-process orchestration must move behind a host executor contract."
+    },
+    {
+      "surface": "pty",
+      "location": "codex-rs/utils/pty, codex-rs/app-server, codex-rs/core",
+      "strategy": "exclude_from_target",
+      "host_capability": "host_exec_adapter",
+      "severity": "high",
+      "notes": "PTY support is native-only and should be removed from the wasm graph, with limited host emulation only if required later."
+    },
+    {
+      "surface": "filesystem",
+      "location": "codex-rs/core, codex-rs/app-server, codex-rs/cli",
+      "strategy": "bridge_to_host",
+      "host_capability": "host_fs_adapter",
+      "severity": "high",
+      "notes": "Direct file and path operations need a MEMFS or proxied host filesystem contract."
+    },
+    {
+      "surface": "network",
+      "location": "codex-rs/core, codex-rs/codex-api, codex-rs/tui",
+      "strategy": "bridge_to_host",
+      "host_capability": "host_network_adapter",
+      "severity": "critical",
+      "notes": "reqwest, SSE, websocket, and fetch-equivalent behavior need a wasm-safe transport abstraction."
+    },
+    {
+      "surface": "socket",
+      "location": "codex-rs/codex-api",
+      "strategy": "cfg_gate",
+      "severity": "high",
+      "notes": "tokio net dependencies should not compile on the wasm path and need targeted gating."
+    },
+    {
+      "surface": "secrets",
+      "location": "codex-rs/keyring-store, codex-rs/secrets, codex-rs/core",
+      "strategy": "bridge_to_host",
+      "host_capability": "host_secret_adapter",
+      "severity": "high",
+      "notes": "Native keyring access needs a host-managed secret provider with explicit absent-secret behavior."
+    },
+    {
+      "surface": "sandbox",
+      "location": "codex-rs/linux-sandbox, codex-rs/windows-sandbox-rs, process-hardening call paths",
+      "strategy": "stub",
+      "severity": "medium",
+      "notes": "Wasm mode should return explicit sandbox-stub outcomes instead of attempting native hardening."
+    },
+    {
+      "surface": "terminal_ui",
+      "location": "codex-rs/tui, codex-rs/tui_app_server",
+      "strategy": "exclude_from_target",
+      "severity": "medium",
+      "notes": "The first wasm milestone does not attempt to preserve the native TUI."
+    },
+    {
+      "surface": "os_dependency",
+      "location": "codex-rs/core, codex-rs/cli, codex-rs/tui, codex-rs/codex-api",
+      "strategy": "cfg_gate",
+      "severity": "critical",
+      "notes": "tokio process, tokio net, libc, platform keyring, and sandbox dependencies must be targeted out of wasm builds."
+    }
+  ],
+  "strategy": {
+    "primary_pattern": "bridge_and_gate",
+    "phase_order": [
+      "validation_harness_and_scope_freeze",
+      "workspace_gating_and_bridge_skeleton",
+      "execution_and_terminal_abstraction",
+      "networking_and_async_runtime_adaptation",
+      "filesystem_secrets_and_sandbox_replacement",
+      "public_entrypoints_and_host_loader_conversion",
+      "product_surface_triage_docs_and_hardening"
+    ],
+    "independent_tracks": [
+      "cursor: repo-side gating, wasm bridge, compileability, native-regression safety",
+      "cloud: host loader, adapters, smoke tests, and target-environment packaging",
+      "codex: planning artifacts, phase graph, validation requirements, and coordination"
+    ],
+    "llm_allowed_tasks": [
+      "summarize blockers into phase language",
+      "propose seam locations",
+      "draft bounded patch plans",
+      "rank bridge strategy options",
+      "explain why dependencies are wasm-hostile"
+    ]
+  },
+  "generated_artifacts": {
+    "manifest_path": "auto-web/repo-port-plan.json",
+    "plan_path": "auto-web/plan.md",
+    "bridge_path": "codex-rs/wasm-bridge",
+    "host_adapter_path": "tools/auto-web/host-harness.js",
+    "report_path": "auto-web/phase-map.json"
+  },
+  "validation": {
+    "compile_checks": [
+      "cargo check --target wasm32-unknown-unknown -p codex-wasm-bridge --no-default-features --features wasm",
+      "cargo check -p codex-core -p codex-app-server -p codex-cli"
+    ],
+    "contract_tests": [
+      "ABI contract tests for wasm bridge init, submit, callback, and shutdown payloads",
+      "Exec adapter contract tests for request, stdout or stderr chunks, exit, and cancellation",
+      "Network adapter contract tests for request, streamed response chunks, timeout, and cancellation",
+      "Filesystem and secret capability tests for success and explicit missing-resource behavior",
+      "Sandbox stub tests asserting explicit unsupported or stubbed outcomes"
+    ],
+    "smoke_tests": [
+      "host harness loads the wasm module and verifies exported symbols",
+      "host harness submits one request, services one callback, and receives one result",
+      "native launcher path remains functional outside the wasm target"
+    ],
+    "success_criteria": [
+      "codex-wasm-bridge builds for wasm32-unknown-unknown from the main workspace",
+      "native codex-core, codex-app-server, and codex-cli still compile",
+      "exec, network, filesystem, and secret behavior cross the wasm boundary through explicit contracts",
+      "unsupported surfaces such as the native TUI and native sandboxing are excluded deliberately and documented"
+    ]
+  },
+  "risks": [
+    {
+      "id": "tokio-wasm-runtime-gap",
+      "summary": "tokio process and net features used by core, cli, app-server, and codex-api are not directly compatible with wasm32-unknown-unknown.",
+      "mitigation": "Inventory tokio usage early, gate native-only features, and switch wasm paths to host callbacks plus wasm-safe task spawning."
+    },
+    {
+      "id": "host-contract-drift",
+      "summary": "Repo-side seam work and host-side adapter work can diverge if the ABI is not fixed early.",
+      "mitigation": "Lock the contract with explicit payload types, ABI tests, and a smoke harness before deep implementation starts."
+    },
+    {
+      "id": "launcher-scope-creep",
+      "summary": "Reworking the JS launcher can expand from a minimal loader into a full product rewrite.",
+      "mitigation": "Keep the first host target narrow, load wasm, complete one request lifecycle, and defer broader product UX changes."
+    },
+    {
+      "id": "target-version-ambiguity",
+      "summary": "WORK.md currently references both maceip v8 and maceip v9 as the intended runtime target.",
+      "mitigation": "Keep the roadmap version-neutral for now and resolve the exact runtime label before version-specific documentation or packaging changes land."
+    }
+  ]
+}

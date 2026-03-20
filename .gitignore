@@ -52,6 +52,9 @@ yarn-error.log*
 .env*
 !.env.example
 
+# wasm-bindgen emit (always rebuild via tools/auto-web/build-wasm-bundles.mjs)
+tools/auto-web/wasm-browser/
+
 # package
 *.tgz
 

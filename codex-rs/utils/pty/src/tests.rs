@@ -10,7 +10,12 @@ use crate::pipe::spawn_process_no_stdin_with_inherited_fds;
 use crate::pty::spawn_process_with_inherited_fds;
 use crate::spawn_pipe_process;
 use crate::spawn_pipe_process_no_stdin;
+use crate::spawn_pipe_process_no_stdin_with_inherited_fds;
+use crate::spawn_pipe_process_with_inherited_fds;
 use crate::spawn_pty_process;
+use crate::spawn_pty_process_with_inherited_fds;
+use crate::NativeProcessSpawner;
+use crate::ProcessSpawnRequest;
 use crate::SpawnedProcess;
 use crate::TerminalSize;
 
@@ -75,6 +80,34 @@ async fn collect_split_output(mut output_rx: tokio::sync::mpsc::Receiver<Vec<u8>
         collected.extend_from_slice(&chunk);
     }
     collected
+}
+
+async fn collect_split_spawned_output(
+    spawned: SpawnedProcess,
+    timeout_ms: u64,
+) -> anyhow::Result<(Vec<u8>, Vec<u8>, i32)> {
+    let SpawnedProcess {
+        session: _session,
+        stdout_rx,
+        stderr_rx,
+        exit_rx,
+    } = spawned;
+
+    let timeout = tokio::time::Duration::from_millis(timeout_ms);
+    let stdout_task = tokio::spawn(async move { collect_split_output(stdout_rx).await });
+    let stderr_task = tokio::spawn(async move { collect_split_output(stderr_rx).await });
+    let code = tokio::time::timeout(timeout, exit_rx)
+        .await
+        .map_err(|_| anyhow::anyhow!("timed out waiting for split process exit"))?
+        .unwrap_or(-1);
+    let stdout = tokio::time::timeout(timeout, stdout_task)
+        .await
+        .map_err(|_| anyhow::anyhow!("timed out waiting to drain split stdout"))??;
+    let stderr = tokio::time::timeout(timeout, stderr_task)
+        .await
+        .map_err(|_| anyhow::anyhow!("timed out waiting to drain split stderr"))??;
+
+    Ok((stdout, stderr, code))
 }
 
 fn combine_spawned_output(
@@ -439,6 +472,106 @@ async fn pipe_process_round_trips_stdin() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn native_process_spawner_runs_pipe_requests() -> anyhow::Result<()> {
+    let (program, args) = if cfg!(windows) {
+        let cmd = std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string());
+        (
+            cmd,
+            vec![
+                "/Q".to_string(),
+                "/V:ON".to_string(),
+                "/D".to_string(),
+                "/C".to_string(),
+                "set /p line= & echo(!line!".to_string(),
+            ],
+        )
+    } else {
+        let Some(python) = find_python() else {
+            eprintln!("python not found; skipping native_process_spawner_runs_pipe_requests");
+            return Ok(());
+        };
+        (
+            python,
+            vec![
+                "-u".to_string(),
+                "-c".to_string(),
+                "import sys; print(sys.stdin.readline().strip());".to_string(),
+            ],
+        )
+    };
+    let env_map: HashMap<String, String> = std::env::vars().collect();
+    let request = ProcessSpawnRequest::pipe(&program, &args, Path::new("."), &env_map, &None);
+    let spawned = NativeProcessSpawner.spawn(request).await?;
+    let (session, output_rx, exit_rx) = combine_spawned_output(spawned);
+    let writer = session.writer_sender();
+    let newline = if cfg!(windows) { "\r\n" } else { "\n" };
+    writer
+        .send(format!("adapter{newline}").into_bytes())
+        .await?;
+    drop(writer);
+    session.close_stdin();
+
+    let (output, code) = collect_output_until_exit(output_rx, exit_rx, 5_000).await;
+    let text = String::from_utf8_lossy(&output);
+
+    assert!(
+        text.contains("adapter"),
+        "expected adapter-backed pipe process to echo stdin: {text:?}"
+    );
+    assert_eq!(code, 0, "expected adapter-backed process to exit cleanly");
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn seam_wrappers_cover_inherited_fd_pipe_variants() -> anyhow::Result<()> {
+    let env_map: HashMap<String, String> = std::env::vars().collect();
+    let (program, args) = shell_command(&split_stdout_stderr_command());
+    let expected_stdout = if cfg!(windows) {
+        b"split-out\r\n".to_vec()
+    } else {
+        b"split-out\n".to_vec()
+    };
+    let expected_stderr = if cfg!(windows) {
+        b"split-err\r\n".to_vec()
+    } else {
+        b"split-err\n".to_vec()
+    };
+
+    let piped = spawn_pipe_process_with_inherited_fds(
+        &program,
+        &args,
+        Path::new("."),
+        &env_map,
+        &None,
+        &[],
+    )
+    .await?;
+    let (stdout, stderr, exit_code) = collect_split_spawned_output(piped, 3_000).await?;
+
+    assert_eq!(exit_code, 0);
+    assert_eq!(stdout, expected_stdout);
+    assert_eq!(stderr, expected_stderr);
+
+    let no_stdin = spawn_pipe_process_no_stdin_with_inherited_fds(
+        &program,
+        &args,
+        Path::new("."),
+        &env_map,
+        &None,
+        &[],
+    )
+    .await?;
+    let (stdout, stderr, exit_code) = collect_split_spawned_output(no_stdin, 3_000).await?;
+
+    assert_eq!(exit_code, 0);
+    assert_eq!(stdout, expected_stdout);
+    assert_eq!(stderr, expected_stderr);
+
+    Ok(())
+}
+
 #[cfg(unix)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn pipe_process_detaches_from_parent_session() -> anyhow::Result<()> {
@@ -518,6 +651,34 @@ async fn pipe_and_pty_share_interface() -> anyhow::Result<()> {
     assert!(
         String::from_utf8_lossy(&pty_out).contains("pty_ok"),
         "pty output mismatch: {pty_out:?}"
+    );
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn seam_wrapper_covers_inherited_fd_pty_variant() -> anyhow::Result<()> {
+    let env_map: HashMap<String, String> = std::env::vars().collect();
+    let (program, args) = shell_command("printf 'pty-wrapper\\n'");
+
+    let spawned = spawn_pty_process_with_inherited_fds(
+        &program,
+        &args,
+        Path::new("."),
+        &env_map,
+        &None,
+        TerminalSize::default(),
+        &[],
+    )
+    .await?;
+    let (_session, output_rx, exit_rx) = combine_spawned_output(spawned);
+    let (output, exit_code) = collect_output_until_exit(output_rx, exit_rx, 3_000).await;
+
+    assert_eq!(exit_code, 0);
+    assert!(
+        String::from_utf8_lossy(&output).contains("pty-wrapper"),
+        "expected PTY wrapper output, got {:?}",
+        String::from_utf8_lossy(&output)
     );
 
     Ok(())

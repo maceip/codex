@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/auto-web/logbook.schema.json",
+  "title": "AutoWebEngineerLogbook",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "last_updated_utc",
+    "purpose",
+    "read_before_work",
+    "rules",
+    "entries"
+  ],
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "last_updated_utc": { "type": "string" },
+    "purpose": { "type": "string" },
+    "read_before_work": { "type": "boolean" },
+    "rules": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "timestamp_utc",
+          "actor",
+          "kind",
+          "summary",
+          "files",
+          "requires_attention",
+          "next_check_before"
+        ],
+        "properties": {
+          "timestamp_utc": { "type": "string" },
+          "actor": { "type": "string" },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "sync",
+              "claim",
+              "handoff",
+              "blocker",
+              "dependency",
+              "test",
+              "decision",
+              "status"
+            ]
+          },
+          "summary": { "type": "string" },
+          "files": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "requires_attention": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "next_check_before": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

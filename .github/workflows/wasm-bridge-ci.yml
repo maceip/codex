@@ -1,0 +1,88 @@
+name: wasm-bridge-ci
+
+on:
+  pull_request:
+    paths:
+      - "codex-rs/wasm-bridge/**"
+      - "codex-rs/core/**"
+      - "codex-cli/bin/**"
+      - "tools/auto-web/**"
+      - ".github/workflows/wasm-bridge-ci.yml"
+      - "docs/wasm-*.md"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  wasm32:
+    name: wasm32 check + wasm-bridge tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@1.93.0
+        with:
+          targets: wasm32-unknown-unknown
+      - name: cargo check (wasm32)
+        working-directory: codex-rs
+        run: cargo check --target wasm32-unknown-unknown -p codex-wasm-bridge --no-default-features --features wasm
+      - name: cargo test -p codex-wasm-bridge
+        working-directory: codex-rs
+        run: cargo test -p codex-wasm-bridge
+
+  node_e2e:
+    name: wasm-bindgen + Node E2E
+    runs-on: ubuntu-24.04
+    needs: wasm32
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@1.93.0
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Build wasm artifact
+        working-directory: codex-rs
+        run: cargo build --target wasm32-unknown-unknown -p codex-wasm-bridge --no-default-features --features wasm
+      - name: Cache wasm-bindgen-cli
+        uses: actions/cache@v5
+        with:
+          path: ~/.cargo/bin/wasm-bindgen
+          key: wasm-bindgen-cli-0.2.108-${{ runner.os }}
+      - name: Install wasm-bindgen-cli
+        run: |
+          command -v wasm-bindgen >/dev/null 2>&1 || cargo install wasm-bindgen-cli --version 0.2.108 --locked
+      - name: wasm-bindgen (nodejs → tools/auto-web/wasm-out)
+        run: |
+          set -euo pipefail
+          WASM="./codex-rs/target/wasm32-unknown-unknown/debug/codex_wasm_bridge.wasm"
+          wasm-bindgen "$WASM" --target nodejs --out-dir tools/auto-web/wasm-out
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: pnpm install (puppeteer / browser E2E)
+        run: pnpm install --frozen-lockfile
+      - name: Chrome headless OS deps (Ubuntu)
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ca-certificates fonts-liberation \
+            libasound2t64 libatk-bridge2.0-0 libatk1.0-0 libcups2 libdbus-1-3 libdrm2 \
+            libgbm1 libglib2.0-0 libnspr4 libnss3 libpango-1.0-0 \
+            libx11-6 libxcomposite1 libxdamage1 libxext6 libxfixes3 libxkbcommon0 libxrandr2
+      - name: verify wasm glue exports
+        run: node tools/auto-web/verify-wasm-exports.mjs
+      - name: host harness (--wasm)
+        run: node tools/auto-web/host-harness.js --wasm
+      - name: e2e phase 3 (HTTP)
+        run: node tools/auto-web/e2e-phase3-network.mjs
+      - name: e2e phase 4 (MEMFS / secrets / sandbox)
+        run: node tools/auto-web/e2e-phase4-fs-secrets.mjs
+      - name: e2e phase 5 (lifecycle)
+        run: node tools/auto-web/e2e-phase5-lifecycle.mjs
+      - name: e2e browser (Puppeteer + Chrome-for-Testing stable)
+        run: node tools/auto-web/e2e-browser-puppeteer.mjs

@@ -1,0 +1,242 @@
+version: 1
+last_updated_utc: "2026-03-20T11:01:00Z"
+purpose: append-only captain's log for inter-task sync between engineers
+read_before_work: true
+rules:
+  - Read the newest relevant entries before starting, resuming, or switching any task, subtask, or phase.
+  - Append an entry whenever you stop work, hit a blocker, change a dependency, or hand work to the other engineer.
+  - Keep entries short, factual, and action-oriented.
+entries:
+  - timestamp_utc: "2026-03-20T01:38:44Z"
+    actor: shared
+    kind: decision
+    summary: established a separate captain's log that both engineers must check between work intervals
+    files:
+      - auto-web/coordination.yaml
+      - auto-web/logbook.yaml
+    requires_attention: []
+    next_check_before:
+      - starting a new task
+      - resuming paused work
+      - switching to a different file set
+  - timestamp_utc: "2026-03-20T02:22:42Z"
+    actor: codex
+    kind: sync
+    summary: read WORK.md, the wasm roadmap, coordination, and logbook; confirmed TASK 01 is largely reflected already and recorded the unresolved maceip v8 versus v9 target mismatch
+    files:
+      - WORK.md
+      - docs/maceip-wasm-roadmap.md
+      - docs/auto-web-harness.md
+      - auto-web/coordination.yaml
+      - auto-web/logbook.yaml
+    requires_attention:
+      - clarify whether the first milestone is explicitly for maceip/v8 or maceip/v9 before making version-specific roadmap edits
+    next_check_before:
+      - editing any roadmap or coordination files again
+      - starting implementation work from the wasm roadmap
+  - timestamp_utc: "2026-03-20T02:23:24Z"
+    actor: codex
+    kind: decision
+    summary: inspected current claims, found no active file overlap, and kept single-directory mode with codex as conflict arbiter
+    files:
+      - auto-web/coordination.yaml
+      - auto-web/logbook.yaml
+    requires_attention: []
+    next_check_before:
+      - any new claim on files already owned by the other engineer
+      - any handoff involving codex-rs/Cargo.toml or codex-cli/bin/codex.js
+  - timestamp_utc: "2026-03-20T02:49:29Z"
+    actor: codex
+    kind: claim
+    summary: claimed auto-web planning artifacts to materialize the roadmap as runnable machine-readable outputs before code changes start
+    files:
+      - auto-web/plan.md
+      - auto-web/phase-map.json
+      - auto-web/repo-port-plan.json
+      - auto-web/coordination.yaml
+      - auto-web/logbook.yaml
+    requires_attention:
+      - keep cloud-owned host ABI files separate until an explicit handoff lands
+    next_check_before:
+      - editing any cloud-owned host adapter or ABI files
+      - starting code changes in codex-rs
+  - timestamp_utc: "2026-03-20T02:52:39Z"
+    actor: codex
+    kind: claim
+    summary: extended the codex-owned artifact set to cover the harness intake and native-surface inventory outputs
+    files:
+      - auto-web/manifest.json
+      - auto-web/native-surfaces.json
+      - auto-web/blockers.md
+      - auto-web/coordination.yaml
+      - auto-web/logbook.yaml
+    requires_attention: []
+    next_check_before:
+      - editing any file newly claimed by cursor or cloud
+  - timestamp_utc: "2026-03-20T02:54:25Z"
+    actor: codex
+    kind: handoff
+    summary: completed the initial codex-side planning bundle with plan, phase map, repo port plan, manifest, native-surface inventory, and blocker summary
+    files:
+      - auto-web/plan.md
+      - auto-web/phase-map.json
+      - auto-web/repo-port-plan.json
+      - auto-web/manifest.json
+      - auto-web/native-surfaces.json
+      - auto-web/blockers.md
+      - auto-web/coordination.yaml
+      - auto-web/logbook.yaml
+    requires_attention:
+      - cursor should start with codex-rs/wasm-bridge and the wasm-target cargo check path
+      - cloud should draft auto-web/abi/host-contract.json against the contracts implied by the new inventory files
+      - the maceip v8 versus v9 target label still needs a decision before version-specific docs are written
+    next_check_before:
+      - resuming codex-owned artifact work after cursor or cloud land new claims
+      - editing roadmap or blocker files after the ABI or bridge shape changes
+  - timestamp_utc: "2026-03-20T04:02:00Z"
+    actor: cloud
+    kind: handoff
+    summary: "completed Phase 0 cloud deliverables: (1) drafted host ABI v0.1.0 in auto-web/abi/host-contract.json covering exec, network, filesystem, secrets, and sandbox capabilities with JSON payloads, uuid-v4 correlation IDs, cancellation semantics, and explicit error shapes for missing capabilities; (2) created tools/auto-web/host-harness.js smoke harness that validates 13 checks (export existence, init, submit, callback delivery, error shape delivery, cancellation, shutdown, stub capability exercise) — currently passing 13/13 against JS mock; (3) updated coordination.yaml with draft status on all host adapters, passing_mock status on smoke test, draft_complete on unresolved_host_abi blocker, and new handoff to cursor"
+    files:
+      - auto-web/abi/host-contract.json
+      - tools/auto-web/host-harness.js
+      - auto-web/coordination.yaml
+      - auto-web/logbook.yaml
+    requires_attention:
+      - cursor should align wasm-bridge exports to the five methods defined in the host contract (codex_init, codex_submit, codex_deliver_callback, codex_cancel, codex_shutdown)
+      - cursor should review whether the host import names (host_exec_request, host_http_request, host_fs_*, host_secret_*, host_sandbox_apply) match the seam points they plan to introduce
+      - cloud next task is Phase 1 mock host implementation and Phase 2 real exec adapter once the bridge crate exists
+    next_check_before:
+      - cursor lands codex-rs/wasm-bridge with actual exports
+      - any change to the five wasm export method signatures
+      - any change to host import method names or payload shapes
+  - timestamp_utc: "2026-03-20T04:13:51Z"
+    actor: cursor
+    kind: claim
+    summary: "claimed the workspace and new bridge files needed for the first cursor milestone: add codex-rs/wasm-bridge and wire the initial wasm-target cargo check path"
+    files:
+      - codex-rs/Cargo.toml
+      - codex-rs/wasm-bridge/Cargo.toml
+      - codex-rs/wasm-bridge/src/lib.rs
+      - codex-rs/wasm-bridge/tests/bridge_contract.rs
+      - MODULE.bazel.lock
+      - auto-web/coordination.yaml
+      - auto-web/logbook.yaml
+    requires_attention:
+      - keep auto-web/abi/host-contract.json read-only unless cloud hands it off explicitly
+    next_check_before:
+      - editing any cloud-owned ABI or harness files
+      - widening the patch set into codex-core or codex-app-server
+  - timestamp_utc: "2026-03-20T04:31:00Z"
+    actor: cursor
+    kind: handoff
+    summary: created codex-rs/wasm-bridge, added workspace wiring, aligned the initial five exported methods to host ABI v0.1.0, passed cargo test -p codex-wasm-bridge and the wasm-target cargo check, ran just fix and just fmt, and refreshed bazel lock maintenance; the broad native check remains blocked locally because codex-linux-sandbox needs libcap via pkg-config
+    files:
+      - codex-rs/Cargo.toml
+      - codex-rs/Cargo.lock
+      - codex-rs/wasm-bridge/Cargo.toml
+      - codex-rs/wasm-bridge/src/lib.rs
+      - codex-rs/wasm-bridge/tests/bridge_contract.rs
+      - auto-web/coordination.yaml
+      - auto-web/logbook.yaml
+    requires_attention:
+      - cloud can now target the real five bridge exports from the host harness side
+      - future cursor work should start integrating the bridge with codex-core and introducing real host-callback wiring
+      - native_check_core_app_cli needs a machine with libcap.pc available or an accepted alternative build path for codex-linux-sandbox
+    next_check_before:
+      - changing the wasm export signatures
+      - widening the patch set into codex-core, codex-app-server, or codex-cli
+  - timestamp_utc: "2026-03-20T05:00:23Z"
+    actor: cursor
+    kind: claim
+    summary: claimed the first core-side seam files to move wasm bridge lifecycle and callback state into codex-core without editing cloud-owned ABI files
+    files:
+      - codex-rs/core/src/lib.rs
+      - codex-rs/core/src/wasm_bridge.rs
+      - codex-rs/core/src/wasm_bridge_tests.rs
+      - codex-rs/wasm-bridge/Cargo.toml
+      - codex-rs/wasm-bridge/src/lib.rs
+      - codex-rs/wasm-bridge/tests/bridge_contract.rs
+      - codex-rs/Cargo.lock
+      - auto-web/coordination.yaml
+      - auto-web/logbook.yaml
+    requires_attention:
+      - keep the host contract file read-only and adapt code to it instead of rewriting it
+    next_check_before:
+      - widening the patch set into exec, app-server, or cli
+      - changing any host import names
+  - timestamp_utc: "2026-03-20T05:31:48Z"
+    actor: cursor
+    kind: handoff
+    summary: moved the bridge lifecycle kernel into codex-core, made codex-wasm-bridge dispatch queued host calls through that seam on native builds and through the real wasm host imports on wasm32 builds, passed cargo test -p codex-wasm-bridge plus the wasm-target cargo check, and confirmed cargo test -p codex-core and just fix -p codex-core still stop at the existing libcap/pkg-config blocker in codex-linux-sandbox
+    files:
+      - codex-rs/core/src/lib.rs
+      - codex-rs/core/src/wasm_bridge.rs
+      - codex-rs/core/src/wasm_bridge_tests.rs
+      - codex-rs/wasm-bridge/Cargo.toml
+      - codex-rs/wasm-bridge/src/lib.rs
+      - codex-rs/wasm-bridge/tests/bridge_contract.rs
+      - auto-web/coordination.yaml
+      - auto-web/logbook.yaml
+    requires_attention:
+      - cloud can point the host harness at the real wasm import names because host_call dispatch now routes by capability string instead of being stub-only
+      - any deeper cursor integration into exec, app-server, or cli should assume cargo test -p codex-core and just fix -p codex-core remain blocked until libcap.pc is available locally
+    next_check_before:
+      - widening the patch set into exec, app-server, or cli
+      - changing any host import names or callback payload shapes
+  - timestamp_utc: "2026-03-20T05:41:37Z"
+    actor: cursor
+    kind: claim
+    summary: claimed the codex-utils-pty seam files to isolate process and PTY spawning behind a request-based native adapter while leaving cloud-owned host files untouched
+    files:
+      - codex-rs/utils/pty/README.md
+      - codex-rs/utils/pty/src/lib.rs
+      - codex-rs/utils/pty/src/spawn.rs
+      - codex-rs/utils/pty/src/pty.rs
+      - codex-rs/utils/pty/src/pipe.rs
+      - codex-rs/utils/pty/src/tests.rs
+      - auto-web/coordination.yaml
+      - auto-web/logbook.yaml
+    requires_attention:
+      - keep the work inside repo-side seams only and do not edit cloud-owned harness artifacts
+    next_check_before:
+      - widening the patch set into core, app-server, or exec-server
+      - changing any host import names
+  - timestamp_utc: "2026-03-20T10:26:00Z"
+    actor: cloud
+    kind: implementation
+    summary: |
+      Landed kind=cli → host_exec_request in codex-wasm-bridge and codex-core WasmBridgeKernel; added structured submit keys for http/fs/secrets/sandbox_apply;
+      serialized bridge_contract tests; regenerated tools/auto-web/wasm-out; verified CLI `echo hi` wasm path shows exec_dispatched and harness 51/51.
+    files:
+      - codex-rs/core/src/wasm_bridge.rs
+      - codex-rs/core/src/wasm_bridge_tests.rs
+      - codex-rs/wasm-bridge/src/lib.rs
+      - codex-rs/wasm-bridge/tests/bridge_contract.rs
+      - codex-rs/wasm-bridge/Cargo.toml
+      - codex-rs/Cargo.lock
+      - auto-web/plan.md
+      - auto-web/coordination.yaml
+    requires_attention:
+      - codex-core wasm_bridge unit tests still need libcap for linux-sandbox on this machine
+    next_check_before:
+      - changing host import signatures or submit JSON schema
+  - timestamp_utc: "2026-03-20T11:01:00Z"
+    actor: cloud
+    kind: milestone
+    summary: |
+      Phase 3 (networking + wasm-safe transport) checked in for both tracks: docs/wasm-phase3-networking.md,
+      Rust HTTP contract types + stream_response test in codex-core wasm_bridge, codex.js streaming fetch host_http_request,
+      host-harness v0.6.0 (53 checks). User notified; coordination.yaml reports updated.
+    files:
+      - docs/wasm-phase3-networking.md
+      - docs/maceip-wasm-roadmap.md
+      - codex-rs/core/src/wasm_bridge.rs
+      - codex-rs/core/src/wasm_bridge_tests.rs
+      - codex-rs/wasm-bridge/tests/bridge_contract.rs
+      - codex-cli/bin/codex.js
+      - tools/auto-web/host-harness.js
+      - auto-web/coordination.yaml
+    requires_attention: []
+    next_check_before:
+      - Phase 4 FS/secrets hardening or core reqwest excision
