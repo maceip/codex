@@ -17,6 +17,13 @@ const wasmBrowserDir = path.join(toolsAutoWeb, "wasm-browser");
 const indexHtml = path.join(wasmBrowserDir, "index.html");
 const wasmJs = path.join(wasmBrowserDir, "codex_wasm_bridge.js");
 const wasmBin = path.join(wasmBrowserDir, "codex_wasm_bridge_bg.wasm");
+const FORBIDDEN_FALLBACK_MARKERS = [
+  "Available commands: help, about, version, clear, demo",
+  "Starting demo...",
+  "command not found:",
+  "Type `help` for available commands.",
+  "Claude Code CLI ready",
+];
 
 function mime(p) {
   if (p.endsWith(".html")) return "text/html; charset=utf-8";
@@ -126,17 +133,28 @@ async function main() {
 
   try {
     const page = await browser.newPage();
+    const pageErrors = [];
+    const consoleErrors = [];
+    const requestFailures = [];
     await page.evaluateOnNewDocument((o) => {
       globalThis.__BROWSER_HARNESS_ORIGIN__ = o;
     }, origin);
 
     page.on("pageerror", (err) => {
+      pageErrors.push(err?.stack || err?.message || String(err));
       console.error("[pageerror]", err);
     });
     page.on("console", (msg) => {
       if (msg.type() === "error") {
+        consoleErrors.push(msg.text());
         console.error("[page console]", msg.text());
       }
+    });
+    page.on("requestfailed", (req) => {
+      const failure = req.failure();
+      const detail = `${req.method()} ${req.url()}${failure?.errorText ? ` — ${failure.errorText}` : ""}`;
+      requestFailures.push(detail);
+      console.error("[requestfailed]", detail);
     });
 
     await page.goto(`${origin}/`, { waitUntil: "load", timeout: 120_000 });
@@ -156,6 +174,32 @@ async function main() {
     const status = await page.$eval("#status", (el) => el.textContent);
     if (status !== "ok") {
       throw new Error(`unexpected #status: ${status}`);
+    }
+
+    const suspiciousFallbackMarkers = await page.evaluate((markers) => {
+      const text = document.body?.innerText || "";
+      return markers.filter((marker) => text.includes(marker));
+    }, FORBIDDEN_FALLBACK_MARKERS);
+
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    if (pageErrors.length > 0) {
+      throw new Error(`browser pageerror detected:\n${pageErrors.join("\n\n")}`);
+    }
+    if (consoleErrors.length > 0) {
+      throw new Error(
+        `browser console.error detected:\n${consoleErrors.join("\n\n")}`,
+      );
+    }
+    if (requestFailures.length > 0) {
+      throw new Error(
+        `browser request failures detected:\n${requestFailures.join("\n\n")}`,
+      );
+    }
+    if (suspiciousFallbackMarkers.length > 0) {
+      throw new Error(
+        `browser fallback-shell markers detected:\n${suspiciousFallbackMarkers.join("\n")}`,
+      );
     }
 
     console.log(`e2e-browser-puppeteer: ok (Chrome binary: ${executablePath})`);
