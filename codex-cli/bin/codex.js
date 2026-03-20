@@ -16,6 +16,7 @@ import {
   createSecretStore,
   registerPhase4HostCapabilities,
 } from "./host-phase4-capabilities.js";
+import { registerExtensionTransportHosts } from "./host-extension-transport.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -281,6 +282,8 @@ function installHostImports(session) {
       );
     });
   };
+
+  registerExtensionTransportHosts(globalThis, { bridge });
 
   const wasmSecrets = createSecretStore({ envFallback: true });
   registerPhase4HostCapabilities(globalThis, {

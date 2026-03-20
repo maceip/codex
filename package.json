@@ -10,9 +10,11 @@
     "e2e:wasm-phase5-lifecycle": "node tools/auto-web/e2e-phase5-lifecycle.mjs",
     "verify:wasm-exports": "node tools/auto-web/verify-wasm-exports.mjs",
     "verify:host-contract": "node tools/auto-web/verify-host-contract.mjs",
+    "verify:contract-goldens": "node tools/auto-web/verify-contract-goldens.mjs",
+    "e2e:wasm-cancel-stress": "node tools/auto-web/e2e-cancel-stress.mjs",
     "build:wasm-bundles": "node tools/auto-web/build-wasm-bundles.mjs",
     "e2e:wasm-browser-puppeteer": "node tools/auto-web/e2e-browser-puppeteer.mjs",
-    "e2e:wasm-milestone": "node tools/auto-web/verify-host-contract.mjs && node tools/auto-web/verify-wasm-exports.mjs && node tools/auto-web/host-harness.js --wasm && node tools/auto-web/e2e-phase3-network.mjs && node tools/auto-web/e2e-phase4-fs-secrets.mjs && node tools/auto-web/e2e-phase5-lifecycle.mjs && node tools/auto-web/e2e-browser-puppeteer.mjs",
+    "e2e:wasm-milestone": "node tools/auto-web/verify-host-contract.mjs && node tools/auto-web/verify-contract-goldens.mjs && node tools/auto-web/verify-wasm-exports.mjs && node tools/auto-web/host-harness.js --wasm && node tools/auto-web/e2e-phase3-network.mjs && node tools/auto-web/e2e-phase4-fs-secrets.mjs && node tools/auto-web/e2e-phase5-lifecycle.mjs && node tools/auto-web/e2e-cancel-stress.mjs && node tools/auto-web/e2e-browser-puppeteer.mjs",
     "write-hooks-schema": "cargo run --manifest-path ./codex-rs/Cargo.toml -p codex-hooks --bin write_hooks_schema_fixtures"
   },
   "devDependencies": {

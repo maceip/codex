@@ -129,6 +129,27 @@ jobs:
           bash -n tools/argument-comment-lint/run.sh
           ./tools/argument-comment-lint/run.sh
 
+  wasm_bridge_contract_guard:
+    name: Wasm bridge contract guard (wasm32 + JSON drift)
+    runs-on: ubuntu-24.04
+    needs: changed
+    if: ${{ needs.changed.outputs.codex == 'true' || needs.changed.outputs.workflows == 'true' || github.event_name == 'push' }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@1.93.0
+        with:
+          targets: wasm32-unknown-unknown
+      - name: cargo check wasm32 wasm-bridge
+        working-directory: codex-rs
+        run: cargo check --target wasm32-unknown-unknown -p codex-wasm-bridge --no-default-features --features wasm
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Host contract + golden JSON samples
+        run: |
+          node tools/auto-web/verify-host-contract.mjs
+          node tools/auto-web/verify-contract-goldens.mjs
+
   # --- CI to validate on different os/targets --------------------------------
   lint_build:
     name: Lint/Build — ${{ matrix.runner }} - ${{ matrix.target }}${{ matrix.profile == 'release' && ' (release)' || '' }}

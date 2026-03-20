@@ -71,6 +71,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: verify host-contract.json shape
         run: node tools/auto-web/verify-host-contract.mjs
+      - name: verify contract golden JSON samples
+        run: node tools/auto-web/verify-contract-goldens.mjs
       - name: Chrome headless OS deps (Ubuntu)
         run: |
           sudo apt-get update
@@ -89,5 +91,7 @@ jobs:
         run: node tools/auto-web/e2e-phase4-fs-secrets.mjs
       - name: e2e phase 5 (lifecycle)
         run: node tools/auto-web/e2e-phase5-lifecycle.mjs
+      - name: e2e cancel stress (slow HTTP + cancel)
+        run: node tools/auto-web/e2e-cancel-stress.mjs
       - name: e2e browser (Puppeteer + Chrome-for-Testing stable)
         run: node tools/auto-web/e2e-browser-puppeteer.mjs

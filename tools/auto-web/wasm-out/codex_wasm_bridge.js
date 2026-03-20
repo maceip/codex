@@ -89,6 +89,9 @@ function __wbg_get_imports() {
             const ret = console.createTask(getStringFromWasm0(arg0, arg1));
             return ret;
         }, arguments); },
+        __wbg_host_app_server_rpc_240df7a72bf4f9c2: function(arg0, arg1) {
+            host_app_server_rpc(getStringFromWasm0(arg0, arg1));
+        },
         __wbg_host_exec_request_93a710ba92f4e84c: function(arg0, arg1) {
             host_exec_request(getStringFromWasm0(arg0, arg1));
         },
@@ -118,6 +121,12 @@ function __wbg_get_imports() {
         },
         __wbg_host_secret_set_b5f0d3d1441d1731: function(arg0, arg1) {
             host_secret_set(getStringFromWasm0(arg0, arg1));
+        },
+        __wbg_host_tcp_socket_b2e7535a18b9244d: function(arg0, arg1) {
+            host_tcp_socket(getStringFromWasm0(arg0, arg1));
+        },
+        __wbg_host_websocket_request_774c39e799222863: function(arg0, arg1) {
+            host_websocket_request(getStringFromWasm0(arg0, arg1));
         },
         __wbg_new_b5d9e2fb389fef91: function(arg0, arg1) {
             try {

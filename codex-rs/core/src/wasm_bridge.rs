@@ -301,8 +301,8 @@ impl WasmBridgeKernel {
     }
 }
 
-/// Maps `payload.*` shortcuts to host capabilities. Planned keys (`ws`, `tcp`,
-/// `app_server_rpc`) are defined in [`crate::wasm_extension`] but not wired here yet.
+/// Maps `payload.*` shortcuts to host capabilities, including extension transports
+/// (`ws`, `tcp`, `app_server_rpc`) from [`crate::wasm_extension`].
 fn host_call_from_request(request: &WasmBridgeSubmitRequest) -> Option<WasmBridgeHostCall> {
     let payload = request.payload.as_ref()?;
     if let Some(host_call) = payload.get("host_call") {
@@ -313,18 +313,30 @@ fn host_call_from_request(request: &WasmBridgeSubmitRequest) -> Option<WasmBridg
         });
     }
 
-    if let Some(exec_value) = payload.get("exec") {
-        if let Ok(exec) = serde_json::from_value::<WasmBridgeExecRequest>(exec_value.clone()) {
-            return Some(WasmBridgeHostCall {
-                correlation_id: request.correlation_id.clone(),
-                capability: "host_exec_request".to_string(),
-                payload: Some(serialize_exec_request_payload(exec)),
-            });
-        }
+    if let Some(exec_value) = payload.get("exec")
+        && let Ok(exec) = serde_json::from_value::<WasmBridgeExecRequest>(exec_value.clone())
+    {
+        return Some(WasmBridgeHostCall {
+            correlation_id: request.correlation_id.clone(),
+            capability: "host_exec_request".to_string(),
+            payload: Some(serialize_exec_request_payload(exec)),
+        });
     }
 
     const STRUCTURED: &[(&str, &str)] = &[
         ("http", "host_http_request"),
+        (
+            crate::wasm_extension::SUBMIT_KEY_WEBSOCKET,
+            crate::wasm_extension::HOST_WEBSOCKET_REQUEST,
+        ),
+        (
+            crate::wasm_extension::SUBMIT_KEY_TCP,
+            crate::wasm_extension::HOST_TCP_SOCKET,
+        ),
+        (
+            crate::wasm_extension::SUBMIT_KEY_APP_SERVER_RPC,
+            crate::wasm_extension::HOST_APP_SERVER_RPC,
+        ),
         ("fs_read", "host_fs_read"),
         ("fs_write", "host_fs_write"),
         ("fs_list", "host_fs_list"),

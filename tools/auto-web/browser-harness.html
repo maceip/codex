@@ -124,6 +124,54 @@
             });
         };
 
+        host_websocket_request = function (json) {
+          var p = JSON.parse(json);
+          var cid = p.correlation_id;
+          deliver({
+            correlation_id: cid,
+            capability: "network",
+            payload: {
+              kind: "http_response",
+              correlation_id: cid,
+              status: 200,
+              headers: {},
+              body: '{"stub":"extension_ws"}',
+            },
+          });
+        };
+
+        host_tcp_socket = function (json) {
+          var p = JSON.parse(json);
+          var cid = p.correlation_id;
+          deliver({
+            correlation_id: cid,
+            capability: "network",
+            payload: {
+              kind: "http_response",
+              correlation_id: cid,
+              status: 200,
+              headers: {},
+              body: '{"stub":"extension_tcp"}',
+            },
+          });
+        };
+
+        host_app_server_rpc = function (json) {
+          var p = JSON.parse(json);
+          var cid = p.correlation_id;
+          deliver({
+            correlation_id: cid,
+            capability: "network",
+            payload: {
+              kind: "http_response",
+              correlation_id: cid,
+              status: 200,
+              headers: {},
+              body: '{"jsonrpc":"2.0","result":{},"id":null}',
+            },
+          });
+        };
+
         host_fs_read = function (json) {
           var p = JSON.parse(json);
           var cid = p.correlation_id;

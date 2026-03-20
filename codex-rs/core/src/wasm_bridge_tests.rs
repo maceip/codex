@@ -1,4 +1,7 @@
 use super::WasmBridgeKernel;
+use crate::wasm_extension::HOST_APP_SERVER_RPC;
+use crate::wasm_extension::HOST_TCP_SOCKET;
+use crate::wasm_extension::HOST_WEBSOCKET_REQUEST;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 
@@ -259,6 +262,66 @@ fn submit_structured_http_queues_host_call() {
             capability: "host_http_request".to_string(),
             payload: Some(json(r#"{"url":"https://example.com","method":"GET"}"#)),
         }]
+    );
+}
+
+#[test]
+fn submit_structured_extension_keys_queue_expected_host_calls() {
+    let kernel_row =
+        |correlation_id: &str, capability: &str, payload: &str| super::WasmBridgeHostCall {
+            correlation_id: correlation_id.to_string(),
+            capability: capability.to_string(),
+            payload: Some(json(payload)),
+        };
+    let kernel = WasmBridgeKernel::default();
+    kernel.handle_init_json(r#"{"runtime":"node"}"#);
+
+    let submit_response = kernel.handle_submit_json(
+        r#"{"correlation_id":"req-ws","kind":"tool","payload":{"ws":{"url":"wss://example.com/w"}}}"#,
+    );
+    assert_eq!(
+        json(&submit_response),
+        json(r#"{"correlation_id":"req-ws","status":"accepted"}"#)
+    );
+    assert_eq!(
+        kernel.take_pending_host_calls(),
+        vec![kernel_row(
+            "req-ws",
+            HOST_WEBSOCKET_REQUEST,
+            r#"{"url":"wss://example.com/w"}"#,
+        )]
+    );
+
+    let submit_response = kernel.handle_submit_json(
+        r#"{"correlation_id":"req-tcp","kind":"tool","payload":{"tcp":{"host":"127.0.0.1","port":9}}}"#,
+    );
+    assert_eq!(
+        json(&submit_response),
+        json(r#"{"correlation_id":"req-tcp","status":"accepted"}"#)
+    );
+    assert_eq!(
+        kernel.take_pending_host_calls(),
+        vec![kernel_row(
+            "req-tcp",
+            HOST_TCP_SOCKET,
+            r#"{"host":"127.0.0.1","port":9}"#,
+        )]
+    );
+
+    let submit_response = kernel.handle_submit_json(
+        r#"{"correlation_id":"req-rpc","kind":"tool","payload":{"app_server_rpc":{"method":"thread/read","params":{}}}}"#,
+    );
+    assert_eq!(
+        json(&submit_response),
+        json(r#"{"correlation_id":"req-rpc","status":"accepted"}"#)
+    );
+    assert_eq!(
+        kernel.take_pending_host_calls(),
+        vec![kernel_row(
+            "req-rpc",
+            HOST_APP_SERVER_RPC,
+            r#"{"method":"thread/read","params":{}}"#,
+        )]
     );
 }
 

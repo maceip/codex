@@ -1,0 +1,28 @@
+{
+  "description": "Golden JSON envelopes; verify-contract-goldens.mjs ensures parseability and required keys.",
+  "wasm_export_responses": {
+    "init_ok": { "ok": true },
+    "submit_accepted": { "correlation_id": "00000000-0000-4000-8000-000000000001", "status": "accepted" }
+  },
+  "host_callback_envelopes": {
+    "http_response": {
+      "correlation_id": "00000000-0000-4000-8000-000000000002",
+      "capability": "network",
+      "payload": {
+        "kind": "http_response",
+        "correlation_id": "00000000-0000-4000-8000-000000000002",
+        "status": 200,
+        "headers": {},
+        "body": "{}"
+      }
+    },
+    "error_missing_capability": {
+      "correlation_id": "00000000-0000-4000-8000-000000000003",
+      "error": {
+        "code": "missing_capability",
+        "message": "example",
+        "details": null
+      }
+    }
+  }
+}

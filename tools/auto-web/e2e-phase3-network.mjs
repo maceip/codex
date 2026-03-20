@@ -47,6 +47,9 @@ function installNonHttpStubs(wasm, deliver) {
   globalThis.host_secret_get = stub("host_secret_get");
   globalThis.host_secret_set = stub("host_secret_set");
   globalThis.host_sandbox_apply = stub("host_sandbox_apply");
+  globalThis.host_websocket_request = stub("host_websocket_request");
+  globalThis.host_tcp_socket = stub("host_tcp_socket");
+  globalThis.host_app_server_rpc = stub("host_app_server_rpc");
 }
 
 async function waitFor(pred, ms = 15000) {

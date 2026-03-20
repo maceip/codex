@@ -108,6 +108,33 @@ fn http_stream_submit_is_accepted_for_phase3_seam() {
 
 #[test]
 #[serial]
+fn structured_extension_submits_invoke_test_host_network_stub() {
+    block_on(codex_shutdown());
+    block_on(codex_init(r#"{"runtime":"node"}"#.to_string()));
+    assert_eq!(delivered_callback_count_for_tests(), 0);
+
+    block_on(codex_submit(
+        r#"{"correlation_id":"req-ws","kind":"tool","payload":{"ws":{"url":"wss://example.com/"}}}"#
+            .to_string(),
+    ));
+    block_on(codex_submit(
+        r#"{"correlation_id":"req-tcp","kind":"tool","payload":{"tcp":{"host":"127.0.0.1","port":9}}}"#
+            .to_string(),
+    ));
+    block_on(codex_submit(
+        r#"{"correlation_id":"req-rpc","kind":"tool","payload":{"app_server_rpc":{"method":"thread/read","params":{}}}}"#
+            .to_string(),
+    ));
+
+    assert_eq!(
+        delivered_callback_count_for_tests(),
+        3,
+        "native test host completes extension imports with synthetic http_response callbacks"
+    );
+}
+
+#[test]
+#[serial]
 fn cli_kind_with_argv_maps_to_exec_host_call_seam() {
     block_on(codex_shutdown());
     block_on(codex_init(r#"{"runtime":"node"}"#.to_string()));

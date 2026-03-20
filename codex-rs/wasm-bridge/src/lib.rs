@@ -366,6 +366,32 @@ fn dispatch_pending_host_calls(host_calls: Vec<WasmBridgeHostCall>) {
                 }
             });
             kernel.handle_deliver_callback_json(&exit.to_string());
+        } else if matches!(
+            host_call.capability.as_str(),
+            "host_http_request"
+                | "host_websocket_request"
+                | "host_tcp_socket"
+                | "host_app_server_rpc"
+        ) {
+            let cid = host_call.correlation_id.as_str();
+            let body = match host_call.capability.as_str() {
+                "host_http_request" => r#"{"mock":"http"}"#,
+                "host_websocket_request" => r#"{"mock":"ws"}"#,
+                "host_tcp_socket" => r#"{"mock":"tcp"}"#,
+                _ => r#"{"mock":"rpc"}"#,
+            };
+            let cb = serde_json::json!({
+                "correlation_id": cid,
+                "capability": "network",
+                "payload": {
+                    "kind": "http_response",
+                    "correlation_id": cid,
+                    "status": 200,
+                    "headers": serde_json::json!({}),
+                    "body": body,
+                }
+            });
+            kernel.handle_deliver_callback_json(&cb.to_string());
         } else {
             kernel.handle_deliver_callback_json(&missing_capability_callback_json(
                 &host_call.correlation_id,
@@ -398,6 +424,18 @@ fn host_call_from_request(request: &SubmitRequest) -> Option<BridgeHostCall> {
 
     const STRUCTURED: &[(&str, &str)] = &[
         ("http", "host_http_request"),
+        (
+            crate::extension_ids::SUBMIT_KEY_WEBSOCKET,
+            crate::extension_ids::HOST_WEBSOCKET_REQUEST,
+        ),
+        (
+            crate::extension_ids::SUBMIT_KEY_TCP,
+            crate::extension_ids::HOST_TCP_SOCKET,
+        ),
+        (
+            crate::extension_ids::SUBMIT_KEY_APP_SERVER_RPC,
+            crate::extension_ids::HOST_APP_SERVER_RPC,
+        ),
         ("fs_read", "host_fs_read"),
         ("fs_write", "host_fs_write"),
         ("fs_list", "host_fs_list"),
@@ -476,6 +514,9 @@ fn dispatch_host_call(host_call: BridgeHostCall) {
         "host_secret_get" => host_imports::host_secret_get(&request_json),
         "host_secret_set" => host_imports::host_secret_set(&request_json),
         "host_sandbox_apply" => host_imports::host_sandbox_apply(&request_json),
+        "host_websocket_request" => host_imports::host_websocket_request(&request_json),
+        "host_tcp_socket" => host_imports::host_tcp_socket(&request_json),
+        "host_app_server_rpc" => host_imports::host_app_server_rpc(&request_json),
         _ => handle_deliver_callback(&missing_capability_callback_json(
             &host_call.correlation_id,
             &host_call.capability,
@@ -594,6 +635,15 @@ mod host_imports {
 
         #[wasm_bindgen(js_name = host_sandbox_apply)]
         pub fn host_sandbox_apply(request_json: &str);
+
+        #[wasm_bindgen(js_name = host_websocket_request)]
+        pub fn host_websocket_request(request_json: &str);
+
+        #[wasm_bindgen(js_name = host_tcp_socket)]
+        pub fn host_tcp_socket(request_json: &str);
+
+        #[wasm_bindgen(js_name = host_app_server_rpc)]
+        pub fn host_app_server_rpc(request_json: &str);
     }
 }
 

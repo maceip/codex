@@ -3,14 +3,16 @@
 //! **WebSocket**, and **app-server**-shaped RPC over the host boundary.
 //!
 //! - Hosts that do not implement a capability **MUST** answer with `missing_capability`
-//!   (same rule as [`super::wasm_bridge`] today).
-//! - Types here are **contract sketches** for serde-stable JSON; wiring into
-//!   `host_call_from_request` / wasm-bindgen imports is intentionally deferred.
+//!   (same rule as [`crate::wasm_bridge`] today).
+//! - Types here are **contract sketches** for serde-stable JSON; structured `codex_submit`
+//!   keys are wired through [`crate::wasm_bridge`] and wasm-bindgen imports — hosts may
+//!   still answer `missing_capability`.
 //!
 //! Keep string constants in sync with `codex-wasm-bridge::extension_ids` (native tests
 //! assert equality) and with `auto-web/abi/host-contract.json` → `extension_interfaces`.
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 use serde_json::Value;
 
 // --- wasm import / host function names (planned) -----------------------------------------

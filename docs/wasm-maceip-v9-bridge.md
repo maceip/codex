@@ -3,6 +3,8 @@
 **Goal (from `WORK.md`):** run Codex wasm inside the **[maceip/v9](https://github.com/maceip/v9)**
 EdgeJS browser runtime with minimal fork surface.
 
+**Status:** No in-repo CI proves this bridge inside v9 yet — see [`wasm-v9-integration-status.md`](wasm-v9-integration-status.md).
+
 ## What this repo provides today
 
 - **`codex-wasm-bridge`** + **`wasm-bindgen`** glue (`nodejs` + **`no-modules`** for classic global hosts).

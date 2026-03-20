@@ -15,6 +15,7 @@ import {
   createSecretStore,
   registerPhase4HostCapabilities,
 } from "../../codex-cli/bin/host-phase4-capabilities.js";
+import { installSyntheticExtensionHosts } from "./extension-host-stubs.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -114,6 +115,8 @@ async function main() {
       );
     });
   };
+
+  installSyntheticExtensionHosts((j) => wasm.codex_deliver_callback(j));
 
   registerPhase4HostCapabilities(globalThis, {
     bridge: () => wasm,

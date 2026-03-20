@@ -9,7 +9,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const contractPath = path.resolve(__dirname, "../../auto-web/abi/host-contract.json");
+const contractPath = path.resolve(
+  __dirname,
+  "../../auto-web/abi/host-contract.json",
+);
 
 const REQUIRED_EXPORTS = [
   "codex_init",
@@ -46,16 +49,36 @@ if (!contract.host_imports) {
 }
 
 if (!contract.extension_interfaces?.structured_submit_keys) {
-  console.error("host-contract.json: missing extension_interfaces.structured_submit_keys");
+  console.error(
+    "host-contract.json: missing extension_interfaces.structured_submit_keys",
+  );
   process.exit(1);
 }
 
 const ext = contract.extension_interfaces.structured_submit_keys;
 for (const k of ["ws", "tcp", "app_server_rpc"]) {
   if (!ext[k]?.planned_capability) {
-    console.error(`host-contract.json: extension_interfaces missing ${k}.planned_capability`);
+    console.error(
+      `host-contract.json: extension_interfaces missing ${k}.planned_capability`,
+    );
     process.exit(1);
   }
 }
 
-console.log("verify-host-contract: ok (exports + extension_interfaces present)");
+const him = contract.extension_interfaces?.host_import_methods ?? {};
+for (const k of [
+  "host_websocket_request",
+  "host_tcp_socket",
+  "host_app_server_rpc",
+]) {
+  if (typeof him[k] !== "string" || !him[k].length) {
+    console.error(
+      `host-contract.json: extension_interfaces.host_import_methods missing or empty string for ${k}`,
+    );
+    process.exit(1);
+  }
+}
+
+console.log(
+  "verify-host-contract: ok (exports + extension_interfaces present)",
+);

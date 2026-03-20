@@ -324,8 +324,8 @@
   },
 
   "extension_interfaces": {
-    "description": "Planned host imports + submit payload keys — keep aligned with codex_core::wasm_extension and codex-wasm-bridge::extension_ids",
-    "status": "reserved_not_implemented",
+    "description": "Extension host imports + structured submit keys — keep aligned with codex_core::wasm_extension and codex-wasm-bridge::extension_ids. The wasm kernel routes these payload keys to imports; production hosts may answer missing_capability until brokers exist.",
+    "status": "kernel_routed_optional_host",
     "structured_submit_keys": {
       "ws": {
         "planned_capability": "host_websocket_request",

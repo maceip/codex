@@ -91,6 +91,10 @@ async function main() {
     });
   };
 
+  globalThis.host_websocket_request = stub("host_websocket_request");
+  globalThis.host_tcp_socket = stub("host_tcp_socket");
+  globalThis.host_app_server_rpc = stub("host_app_server_rpc");
+
   registerPhase4HostCapabilities(globalThis, {
     bridge: () => wasm,
     trace: () => {},
