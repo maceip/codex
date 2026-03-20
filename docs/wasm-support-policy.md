@@ -27,4 +27,6 @@ Prefer **additive** bridge and `#[cfg(target_arch = "wasm32")]` seams; keep the 
 
 ## Deferred
 
-Long-lived WebSockets, raw TCP from wasm, and multithreaded Tokio in the bridge remain **out of scope** unless the roadmap is updated.
+Long-lived WebSockets, raw TCP from wasm, and multithreaded Tokio in the bridge remain **out of scope** until hosts implement the reserved imports — **interface names and payload sketches** are frozen in **`codex_core::wasm_extension`**, **`codex-wasm-bridge::extension_ids`**, and **`auto-web/abi/host-contract.json`** → `extension_interfaces`. See [`wasm-extension-interfaces.md`](wasm-extension-interfaces.md) and [`wasm-app-server-bridge.md`](wasm-app-server-bridge.md).
+
+**maceip/v9** embedding is tracked in [`wasm-maceip-v9-bridge.md`](wasm-maceip-v9-bridge.md).

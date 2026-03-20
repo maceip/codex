@@ -5,10 +5,13 @@ on:
     paths:
       - "codex-rs/wasm-bridge/**"
       - "codex-rs/core/**"
+      - "codex-rs/docs/**"
       - "codex-cli/bin/**"
       - "tools/auto-web/**"
+      - "auto-web/abi/**"
       - ".github/workflows/wasm-bridge-ci.yml"
       - "docs/wasm-*.md"
+      - "docs/*wasm*.md"
   push:
     branches: [main]
   workflow_dispatch:
@@ -66,6 +69,8 @@ jobs:
           node-version: 22
       - name: pnpm install (puppeteer / browser E2E)
         run: pnpm install --frozen-lockfile
+      - name: verify host-contract.json shape
+        run: node tools/auto-web/verify-host-contract.mjs
       - name: Chrome headless OS deps (Ubuntu)
         run: |
           sudo apt-get update

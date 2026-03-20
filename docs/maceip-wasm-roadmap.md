@@ -11,7 +11,8 @@ It also carries a smaller secondary thread for goal 2 from `WORK.md`: make the w
 - A new `codex-rs/wasm-bridge` crate becomes the only wasm-specific entry point.
 - Native-only crates such as sandbox, PTY, and terminal UI stay out of the wasm execution path.
 - Host runtimes provide exec, networking, filesystem, secrets, and streaming through a narrow ABI.
-- The supported wasm-facing product surface is `core` and `app-server`, not the native TUI.
+- **Milestone A (current):** the shipping wasm artifact is **`codex-wasm-bridge`** + host JS; **`codex-core`** / **`codex-app-server`** remain native-only until Milestone B. See [`wasm-support-policy.md`](wasm-support-policy.md).
+- **Milestone B (planned):** deepen **`codex-core`** on `wasm32` and widen IDE / RPC coverage via host forwarding — extension IDs and payload sketches live in **`codex_core::wasm_extension`**, [`wasm-extension-interfaces.md`](wasm-extension-interfaces.md), [`wasm-app-server-bridge.md`](wasm-app-server-bridge.md), and `host-contract.json` → `extension_interfaces`. **maceip/v9** checklist: [`wasm-maceip-v9-bridge.md`](wasm-maceip-v9-bridge.md).
 - The bridge contracts are explicit enough to be reused later by automated source-conversion tooling.
 
 ## Working rules
@@ -188,7 +189,7 @@ Move HTTP and streaming work off native transport assumptions and onto a wasm-sa
 
 See [`wasm-phase3-networking.md`](wasm-phase3-networking.md) for the reqwest/SSE/WebSocket inventory, **`stream_response` / `http_stream_chunk`** semantics, validation commands, and the intended wasm-safe async model.
 
-Phases 4–6 docs: [`wasm-phase4-host-capabilities.md`](wasm-phase4-host-capabilities.md), [`wasm-phase5-public-api.md`](wasm-phase5-public-api.md), [`wasm-browser-smoke.md`](wasm-browser-smoke.md), [`wasm-support-policy.md`](wasm-support-policy.md).
+Phases 4–6 docs: [`wasm-phase4-host-capabilities.md`](wasm-phase4-host-capabilities.md), [`wasm-phase5-public-api.md`](wasm-phase5-public-api.md), [`wasm-browser-smoke.md`](wasm-browser-smoke.md), [`wasm-support-policy.md`](wasm-support-policy.md). Extension / Milestone B: [`wasm-extension-interfaces.md`](wasm-extension-interfaces.md), [`codex-rs/docs/wasm-port.md`](../codex-rs/docs/wasm-port.md).
 
 ## Phase 4: Filesystem, secrets, and sandbox replacement
 
