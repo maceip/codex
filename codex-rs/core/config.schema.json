@@ -1272,6 +1272,11 @@
               "default": null,
               "type": "string"
             },
+            "interactive": {
+              "default": false,
+              "description": "Give this synchronous command exclusive ownership of the invoking TUI's terminal for the lifetime of the hook. The hook protocol continues to use stdin/stdout; interactive terminal I/O must use the controlling terminal directly. The command must `exec` its terminal program and must not leave background terminal users behind.",
+              "type": "boolean"
+            },
             "statusMessage": {
               "default": null,
               "type": "string"

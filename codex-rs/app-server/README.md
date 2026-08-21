@@ -1920,6 +1920,7 @@ For unmanaged hooks, `currentHash` and `trustStatus` describe whether the curren
         "matcher": "Bash",
         "command": "python3 /Users/me/hook.py",
         "timeoutSec": 5,
+        "interactive": false,
         "statusMessage": "running hook",
         "additionalContextLimit": null,
         "sourcePath": "/Users/me/.codex/config.toml",

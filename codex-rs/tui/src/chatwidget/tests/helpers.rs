@@ -1620,6 +1620,7 @@ pub(super) fn hook_run(
         source: codex_app_server_protocol::HookSource::User,
         display_order: 0,
         status,
+        interactive: false,
         status_message: Some(status_message.to_string()),
         started_at: 1,
         completed_at: matches!(

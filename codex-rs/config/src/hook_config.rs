@@ -156,6 +156,12 @@ pub enum HookHandlerConfig {
         timeout_sec: Option<u64>,
         #[serde(default)]
         r#async: bool,
+        /// Give this synchronous command exclusive ownership of the invoking TUI's terminal
+        /// for the lifetime of the hook. The hook protocol continues to use stdin/stdout;
+        /// interactive terminal I/O must use the controlling terminal directly. The command must
+        /// `exec` its terminal program and must not leave background terminal users behind.
+        #[serde(default)]
+        interactive: bool,
         #[serde(default, rename = "statusMessage")]
         status_message: Option<String>,
         /// Approximate token threshold for spilling this hook's `additionalContext` to disk.

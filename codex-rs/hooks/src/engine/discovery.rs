@@ -465,6 +465,7 @@ fn append_matcher_groups(
                     command_windows,
                     timeout_sec,
                     r#async,
+                    interactive,
                     status_message,
                     additional_context_limit,
                 } => {
@@ -477,6 +478,22 @@ fn append_matcher_groups(
                     {
                         warnings.push(format!(
                             "skipping async hook in {}: async hooks are not supported yet",
+                            source.path.display()
+                        ));
+                        continue;
+                    }
+                    if interactive && r#async {
+                        warnings.push(format!(
+                            "skipping interactive async hook in {}: interactive hooks must run synchronously",
+                            source.path.display()
+                        ));
+                        continue;
+                    }
+                    if interactive
+                        && event_name == codex_protocol::protocol::HookEventName::SessionEnd
+                    {
+                        warnings.push(format!(
+                            "skipping interactive SessionEnd hook in {}: the terminal owner is shutting down",
                             source.path.display()
                         ));
                         continue;
@@ -525,6 +542,7 @@ fn append_matcher_groups(
                         command_windows: None,
                         timeout_sec: Some(timeout_sec),
                         r#async,
+                        interactive,
                         status_message: status_message.clone(),
                         additional_context_limit: normalized_additional_context_limit,
                     };
@@ -548,6 +566,7 @@ fn append_matcher_groups(
                         matcher: matcher.map(ToOwned::to_owned),
                         command: Some(command.clone()),
                         timeout_sec,
+                        interactive,
                         status_message: status_message.clone(),
                         additional_context_limit,
                         source_path: source.path.clone(),
@@ -571,6 +590,7 @@ fn append_matcher_groups(
                             matcher: matcher.map(ToOwned::to_owned),
                             command,
                             timeout_sec,
+                            interactive,
                             status_message,
                             additional_context_limit: AdditionalContextLimit::from_config(
                                 additional_context_limit,
@@ -821,6 +841,7 @@ mod tests {
                 command_windows: None,
                 timeout_sec: None,
                 r#async: false,
+                interactive: false,
                 status_message: None,
                 additional_context_limit: None,
             }],
@@ -837,6 +858,7 @@ mod tests {
                 command_windows: None,
                 timeout_sec: None,
                 r#async: false,
+                interactive: false,
                 status_message: None,
                 additional_context_limit: Some(additional_context_limit),
             }],
@@ -916,6 +938,82 @@ mod tests {
     }
 
     #[test]
+    fn interactive_mode_is_propagated_and_changes_the_trust_hash() {
+        let source_path = source_path();
+        let hook_states = std::collections::HashMap::new();
+        let mut normal_handlers = Vec::new();
+        let mut normal_entries = Vec::new();
+        let mut interactive_handlers = Vec::new();
+        let mut interactive_entries = Vec::new();
+        let mut warnings = Vec::new();
+        let mut display_order = 0;
+        append_matcher_groups(
+            &mut normal_handlers,
+            &mut normal_entries,
+            &mut warnings,
+            &mut display_order,
+            &hook_handler_source(&source_path, &hook_states),
+            HookEventName::Stop,
+            vec![command_group(/*matcher*/ None)],
+        );
+
+        let mut interactive_group = command_group(/*matcher*/ None);
+        let HookHandlerConfig::Command { interactive, .. } = &mut interactive_group.hooks[0] else {
+            panic!("test command group must contain a command hook");
+        };
+        *interactive = true;
+        display_order = 0;
+        append_matcher_groups(
+            &mut interactive_handlers,
+            &mut interactive_entries,
+            &mut warnings,
+            &mut display_order,
+            &hook_handler_source(&source_path, &hook_states),
+            HookEventName::Stop,
+            vec![interactive_group],
+        );
+
+        assert!(warnings.is_empty());
+        assert!(!normal_handlers[0].interactive);
+        assert!(interactive_handlers[0].interactive);
+        assert!(interactive_entries[0].interactive);
+        assert_ne!(
+            normal_entries[0].current_hash,
+            interactive_entries[0].current_hash
+        );
+    }
+
+    #[test]
+    fn interactive_session_end_is_rejected_before_dispatch() {
+        let source_path = source_path();
+        let hook_states = std::collections::HashMap::new();
+        let mut handlers = Vec::new();
+        let mut entries = Vec::new();
+        let mut warnings = Vec::new();
+        let mut display_order = 0;
+        let mut group = command_group(/*matcher*/ None);
+        let HookHandlerConfig::Command { interactive, .. } = &mut group.hooks[0] else {
+            panic!("test command group must contain a command hook");
+        };
+        *interactive = true;
+
+        append_matcher_groups(
+            &mut handlers,
+            &mut entries,
+            &mut warnings,
+            &mut display_order,
+            &hook_handler_source(&source_path, &hook_states),
+            HookEventName::SessionEnd,
+            vec![group],
+        );
+
+        assert!(handlers.is_empty());
+        assert!(entries.is_empty());
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].contains("skipping interactive SessionEnd hook"));
+    }
+
+    #[test]
     fn unsupported_event_warns_and_ignores_additional_context_limit() {
         let source_path = source_path();
         let (handler, _, warnings) = discover_command(
@@ -955,6 +1053,7 @@ mod tests {
                 matcher: None,
                 command: "echo hello".to_string(),
                 timeout_sec: 600,
+                interactive: false,
                 status_message: None,
                 additional_context_limit: Default::default(),
                 source_path: source_path.clone(),
@@ -991,6 +1090,7 @@ mod tests {
                 matcher: Some("^Bash$".to_string()),
                 command: "echo hello".to_string(),
                 timeout_sec: 600,
+                interactive: false,
                 status_message: None,
                 additional_context_limit: Default::default(),
                 source_path: source_path.clone(),
@@ -1025,6 +1125,7 @@ mod tests {
                         command_windows: None,
                         timeout_sec: None,
                         r#async: false,
+                        interactive: false,
                         status_message: None,
                         additional_context_limit: None,
                     },
@@ -1033,6 +1134,7 @@ mod tests {
                         command_windows: None,
                         timeout_sec: Some(600),
                         r#async: true,
+                        interactive: false,
                         status_message: None,
                         additional_context_limit: None,
                     },
@@ -1221,6 +1323,7 @@ mod tests {
                         command_windows: None,
                         timeout_sec: None,
                         r#async: false,
+                        interactive: false,
                         status_message: None,
                         additional_context_limit: None,
                     }],
@@ -1252,6 +1355,7 @@ mod tests {
                     command_windows: Some("echo windows".to_string()),
                     timeout_sec: None,
                     r#async: false,
+                    interactive: false,
                     status_message: None,
                     additional_context_limit: None,
                 }],

@@ -1075,6 +1075,7 @@ mod tests {
             source: codex_app_server_protocol::HookSource::User,
             display_order: 0,
             status: HookRunStatus::Running,
+            interactive: false,
             status_message: Some("checking output policy".to_string()),
             started_at: 1,
             completed_at: None,

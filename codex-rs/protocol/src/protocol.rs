@@ -1598,6 +1598,8 @@ pub struct HookRunSummary {
     pub source: HookSource,
     pub display_order: i64,
     pub status: HookRunStatus,
+    #[serde(default)]
+    pub interactive: bool,
     pub status_message: Option<String>,
     #[ts(type = "number")]
     pub started_at: i64,

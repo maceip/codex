@@ -275,6 +275,9 @@
                 "null"
               ]
             },
+            "interactive": {
+              "type": "boolean"
+            },
             "statusMessage": {
               "type": [
                 "string",
@@ -300,6 +303,7 @@
           "required": [
             "async",
             "command",
+            "interactive",
             "type"
           ],
           "title": "CommandConfiguredHookHandler",

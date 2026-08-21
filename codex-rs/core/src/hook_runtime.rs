@@ -949,6 +949,7 @@ mod tests {
             source,
             display_order: 0,
             status,
+            interactive: false,
             status_message: None,
             started_at: 10,
             completed_at: Some(37),

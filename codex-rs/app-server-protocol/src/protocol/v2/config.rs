@@ -508,6 +508,7 @@ pub enum ConfiguredHookHandler {
         #[ts(rename = "timeoutSec")]
         timeout_sec: Option<u64>,
         r#async: bool,
+        interactive: bool,
         #[serde(rename = "statusMessage")]
         #[ts(rename = "statusMessage")]
         status_message: Option<String>,

@@ -109,6 +109,10 @@
         "id": {
           "type": "string"
         },
+        "interactive": {
+          "default": false,
+          "type": "boolean"
+        },
         "scope": {
           "$ref": "#/definitions/HookScope"
         },

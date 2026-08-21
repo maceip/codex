@@ -143,6 +143,8 @@ use codex_config::types::WindowsToml;
 use codex_exec_server::EnvironmentManager;
 use codex_features::Feature;
 use codex_features::FeaturesToml;
+use codex_hooks::interactive_terminal::InteractiveTerminalOwner;
+use codex_hooks::interactive_terminal::InteractiveTerminalRequest;
 use codex_model_provider::create_model_provider;
 use codex_model_provider_info::ModelProviderInfo;
 use codex_models_manager::model_presets::HIDE_GPT_5_1_CODEX_MAX_MIGRATION_PROMPT_CONFIG;
@@ -183,6 +185,7 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
+use std::future::Future;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
@@ -428,6 +431,56 @@ impl AppExitInfo {
 pub(crate) enum AppRunControl {
     Continue,
     Exit(ExitReason),
+}
+
+async fn serve_interactive_terminal_request(
+    tui: &mut tui::Tui,
+    request: InteractiveTerminalRequest,
+) {
+    let InteractiveTerminalRequest {
+        lease_id,
+        ready,
+        finished,
+    } = request;
+    tracing::debug!(%lease_id, "releasing terminal to interactive hook");
+    tui.with_restored(|| async move {
+        // This acknowledgement is the ownership barrier: crossterm's input reader is paused and
+        // Codex has left its alternate screen before the hook is allowed to spawn.
+        if ready.send(Ok(())).is_ok() {
+            let _ = finished.await;
+        }
+    })
+    .await;
+    tui.frame_requester().schedule_frame();
+    tracing::debug!(%lease_id, "interactive hook returned terminal to Codex");
+}
+
+async fn await_with_interactive_terminal<F, T>(
+    tui: &mut tui::Tui,
+    owner: &mut Option<InteractiveTerminalOwner>,
+    future: F,
+) -> T
+where
+    F: Future<Output = T>,
+{
+    tokio::pin!(future);
+    loop {
+        select! {
+            output = &mut future => return output,
+            request = async {
+                owner
+                    .as_mut()
+                    .expect("interactive terminal owner branch is guarded")
+                    .recv()
+                    .await
+            }, if owner.is_some() => {
+                match request {
+                    Some(request) => serve_interactive_terminal_request(tui, request).await,
+                    None => *owner = None,
+                }
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -794,6 +847,12 @@ impl App {
         startup_hooks_browser: Option<HooksListEntry>,
     ) -> Result<AppExitInfo> {
         use tokio_stream::StreamExt;
+        // Only the in-process app server shares this TUI's controlling terminal. Daemon and
+        // remote servers must fail an interactive hook before spawn instead of borrowing a
+        // terminal that belongs to a different process or machine.
+        let mut interactive_terminal_owner =
+            matches!(&app_server_target, AppServerTarget::Embedded)
+                .then(codex_hooks::interactive_terminal::register_owner);
         let startup_started_at = Instant::now();
         let (app_event_tx, mut app_event_rx) = unbounded_channel();
         let app_event_tx = AppEventSender::new(app_event_tx);
@@ -945,10 +1004,17 @@ impl App {
                     &config,
                     &harness_overrides,
                 );
-                let resumed = app_server
-                    .resume_thread(config.clone(), target_session.thread_id, model_settings)
-                    .await
-                    .map_err(|err| session_start_error("resume", &target_session, err))?;
+                let resumed = await_with_interactive_terminal(
+                    tui,
+                    &mut interactive_terminal_owner,
+                    app_server.resume_thread(
+                        config.clone(),
+                        target_session.thread_id,
+                        model_settings,
+                    ),
+                )
+                .await
+                .map_err(|err| session_start_error("resume", &target_session, err))?;
                 let init = crate::chatwidget::ChatWidgetInit {
                     config: config.clone(),
                     frame_requester: tui.frame_requester(),
@@ -984,10 +1050,13 @@ impl App {
                     /*inc*/ 1,
                     &[("source", "cli_subcommand")],
                 );
-                let forked = app_server
-                    .fork_thread(config.clone(), target_session.thread_id)
-                    .await
-                    .map_err(|err| session_start_error("fork", &target_session, err))?;
+                let forked = await_with_interactive_terminal(
+                    tui,
+                    &mut interactive_terminal_owner,
+                    app_server.fork_thread(config.clone(), target_session.thread_id),
+                )
+                .await
+                .map_err(|err| session_start_error("fork", &target_session, err))?;
                 let init = crate::chatwidget::ChatWidgetInit {
                     config: config.clone(),
                     frame_requester: tui.frame_requester(),
@@ -1242,6 +1311,21 @@ See the Codex keymap documentation for supported actions and examples."
                         }
                         AppRunControl::Continue
                     }
+                    request = async {
+                        interactive_terminal_owner
+                            .as_mut()
+                            .expect("interactive terminal owner branch is guarded")
+                            .recv()
+                            .await
+                    }, if interactive_terminal_owner.is_some() => {
+                        match request {
+                            Some(request) => {
+                                serve_interactive_terminal_request(tui, request).await;
+                            }
+                            None => interactive_terminal_owner = None,
+                        }
+                        AppRunControl::Continue
+                    }
                 };
                 if App::should_stop_waiting_for_initial_session(
                     waiting_for_initial_session_configured,
@@ -1255,7 +1339,13 @@ See the Codex keymap documentation for supported actions and examples."
                 }
             }
         };
-        if let Err(err) = app_server.shutdown().await {
+        if let Err(err) = await_with_interactive_terminal(
+            tui,
+            &mut interactive_terminal_owner,
+            app_server.shutdown(),
+        )
+        .await
+        {
             tracing::warn!(error = %err, "failed to shut down embedded app server");
         }
         let clear_pet_result = tui.clear_ambient_pet_image();

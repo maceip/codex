@@ -439,6 +439,7 @@ mod tests {
             matcher: None,
             command: "echo hook".to_string(),
             timeout_sec: 5,
+            interactive: false,
             status_message: None,
             additional_context_limit: Default::default(),
             source_path: test_path_buf("/tmp/hooks.json").abs(),

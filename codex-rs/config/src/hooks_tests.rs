@@ -46,6 +46,7 @@ fn hooks_file_deserializes_existing_json_shape() {
                         command_windows: None,
                         timeout_sec: Some(10),
                         r#async: false,
+                        interactive: false,
                         status_message: Some("checking".to_string()),
                         additional_context_limit: Some(4096),
                     }],
@@ -81,6 +82,22 @@ fn hooks_file_rejects_events_outside_hooks_object() {
 }
 
 #[test]
+fn hook_handler_deserializes_interactive_terminal_opt_in() {
+    let parsed: HookHandlerConfig = serde_json::from_str(
+        r#"{"type":"command","command":"exec backstory-tui --hook codex","interactive":true}"#,
+    )
+    .expect("interactive command hook should deserialize");
+
+    assert!(matches!(
+        parsed,
+        HookHandlerConfig::Command {
+            interactive: true,
+            ..
+        }
+    ));
+}
+
+#[test]
 fn hook_events_deserialize_from_toml_arrays_of_tables() {
     let parsed: HookEventsToml = toml::from_str(
         r#"
@@ -107,6 +124,7 @@ additionalContextLimit = 4096
                     command_windows: None,
                     timeout_sec: Some(10),
                     r#async: false,
+                    interactive: false,
                     status_message: Some("checking".to_string()),
                     additional_context_limit: Some(4096),
                 }],
@@ -145,6 +163,7 @@ command = "python3 /tmp/pre.py"
                         command_windows: None,
                         timeout_sec: None,
                         r#async: false,
+                        interactive: false,
                         status_message: None,
                         additional_context_limit: None,
                     }],
@@ -191,6 +210,7 @@ command = "python3 /enterprise/place/pre.py"
                         command_windows: None,
                         timeout_sec: None,
                         r#async: false,
+                        interactive: false,
                         status_message: None,
                         additional_context_limit: None,
                     }],
@@ -228,6 +248,7 @@ command_windows = "powershell -File C:\\enterprise\\hooks\\pre.ps1"
                     ),
                     timeout_sec: None,
                     r#async: false,
+                    interactive: false,
                     status_message: None,
                     additional_context_limit: None,
                 }],
@@ -264,6 +285,7 @@ commandWindows = "powershell -File C:\\enterprise\\hooks\\pre.ps1"
                     ),
                     timeout_sec: None,
                     r#async: false,
+                    interactive: false,
                     status_message: None,
                     additional_context_limit: None,
                 }],
@@ -280,6 +302,7 @@ fn hook_handler_omits_unset_additional_context_limit() {
         command_windows: None,
         timeout_sec: None,
         r#async: false,
+        interactive: false,
         status_message: None,
         additional_context_limit: None,
     };

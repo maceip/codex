@@ -108,6 +108,8 @@ pub struct HookRunSummary {
     pub source: HookSource,
     pub display_order: i64,
     pub status: HookRunStatus,
+    #[serde(default)]
+    pub interactive: bool,
     pub status_message: Option<String>,
     pub started_at: i64,
     pub completed_at: Option<i64>,
@@ -127,6 +129,7 @@ impl From<CoreHookRunSummary> for HookRunSummary {
             source: value.source.into(),
             display_order: value.display_order,
             status: value.status.into(),
+            interactive: value.interactive,
             status_message: value.status_message,
             started_at: value.started_at,
             completed_at: value.completed_at,

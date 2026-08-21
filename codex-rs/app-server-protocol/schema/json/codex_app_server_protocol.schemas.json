@@ -9039,6 +9039,9 @@
                   "null"
                 ]
               },
+              "interactive": {
+                "type": "boolean"
+              },
               "statusMessage": {
                 "type": [
                   "string",
@@ -9064,6 +9067,7 @@
             "required": [
               "async",
               "command",
+              "interactive",
               "type"
             ],
             "title": "CommandConfiguredHookHandler",
@@ -11873,6 +11877,10 @@
           },
           "id": {
             "type": "string"
+          },
+          "interactive": {
+            "default": false,
+            "type": "boolean"
           },
           "scope": {
             "$ref": "#/definitions/v2/HookScope"
